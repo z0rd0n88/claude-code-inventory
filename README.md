@@ -45,15 +45,95 @@ There's no single place to see it all. This plugin creates that single place.
 
 ## Future Direction
 
-The name "claude-code-inventory" leaves room to grow beyond automations:
+The name "claude-code-inventory" leaves room to grow beyond automations. The JSON sidecar already supports extensibility — new sections slot in without breaking the existing structure.
 
-- **Memory files** — what's stored in `~/.claude/projects/*/memory/`
-- **Scheduled tasks** — cron jobs configured via Claude Code
-- **MCP auth state** — which servers need re-authentication
-- **Cross-project view** — compare what's configured across different projects
-- **Plugin health** — orphaned, outdated, or version-mismatched plugins
+### Memory Files (v1.1)
 
-The JSON sidecar already supports this — new sections slot in without breaking the existing structure.
+Claude Code stores per-project knowledge in `~/.claude/projects/<project-slug>/memory/` as markdown files with YAML frontmatter:
+
+```yaml
+---
+name: SMS/RCS Feature
+description: Twilio SMS gateway on the sms branch
+type: project
+---
+```
+
+Memory types: `user`, `project`, `feedback`, `reference`. The inventory would list each file's name, type, and description — plus detect orphaned files (not in `MEMORY.md` index) and broken links (index references missing file).
+
+```
+## Memory Files
+
+| File | Type | Description |
+|------|------|-------------|
+| user_environment.md | user | Windows/Git Bash PATH quirks |
+| project_sms_feature.md | project | Twilio SMS gateway on sms branch |
+| project_update_automatons.md | project | Auto-generates .CLAUDE.automatons.md |
+
+Summary: 3 memory files (1 user, 2 project, 0 feedback, 0 reference)
+```
+
+**Complexity: Low.** Same YAML frontmatter parsing pattern already used for skills.
+
+### Scheduled Tasks (v1.2)
+
+Persistent scheduled tasks (created via `mcp__scheduled-tasks__create_scheduled_task`) are stored at `~/.claude/scheduled-tasks/{taskId}/SKILL.md`. Each has a taskId, description, cron expression or one-time fireAt, and enabled state.
+
+```
+## Scheduled Tasks
+
+| Task ID | Description | Schedule | Enabled |
+|---------|-------------|----------|---------|
+| check-inbox | Check email for urgent items | weekdays 9am | yes |
+| weekly-report | Generate project report | Fridays 5pm | no |
+```
+
+Note: `CronCreate` (the built-in tool) creates session-only ephemeral jobs — those aren't inventoried since they die with the session. Only persistent MCP-based tasks are included.
+
+**Complexity: Low-Medium.** Blocked on confirming the file format — the directory doesn't exist until the first task is created.
+
+### MCP Auth State (v1.1)
+
+`~/.claude/mcp-needs-auth-cache.json` tracks which MCP servers need re-authentication. Auth tokens expire silently — the first sign of trouble is a failed tool call mid-session. The inventory would surface this proactively:
+
+```
+## MCP Auth State
+
+| Server | Auth Needed Since |
+|--------|------------------|
+| Google Calendar | 2026-03-16 04:30 |
+| Gmail | 2026-03-16 04:30 |
+```
+
+**Complexity: Low.** Single JSON file read with timestamp formatting.
+
+**Caveat:** Current data suggests this file only tracks Claude.ai web app servers, not Claude Code CLI MCP servers. Needs investigation.
+
+### Keybindings (v1.1)
+
+Custom keyboard shortcuts in `~/.claude/keybindings.json`. The file format is currently unknown (the file doesn't exist until the first custom binding is created), so this would be a skeleton implementation — show the data if the file exists, omit the section otherwise.
+
+```
+## Keybindings
+
+| Key | Action | Description |
+|-----|--------|-------------|
+| Ctrl+Shift+R | /update-automatons | Refresh automation inventory |
+| Ctrl+Shift+T | run-tests | Execute test suite |
+```
+
+**Complexity: Low.** Skeleton now, flesh out when the format is known.
+
+### Further Out
+
+See [`docs/FUTURE.md`](docs/FUTURE.md) for detailed specs on additional planned features:
+- **Cross-project comparison** — compare configs across all projects in `~/.claude/projects/`
+- **Plugin health** — orphaned versions, enabled-but-not-installed, disk usage, update recency
+- **Permission audit** — group patterns by tool type, detect duplicates and overly broad rules (opt-in)
+- **CLAUDE.md quality** — lightweight quality score based on documented commands, architecture, gotchas
+- **Session usage patterns** — aggregate tool usage, session duration, success rates (opt-in)
+- **Install script** — `curl | bash` one-liner for easier adoption
+- **Marketplace distribution** — publish to `claude-plugins-official`
 
 ## Example Output
 
