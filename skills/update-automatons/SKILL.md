@@ -55,6 +55,9 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 
 ### Plugin-bundled content
 
+**This step is critical and must always run, even if the project has no `.claude/` directory.**
+Plugin-bundled content is global — it comes from `~/.claude/plugins/`, not from the project.
+
 For each plugin listed in `enabledPlugins`, look up its install path from `installed_plugins.json`.
 For local plugins, the path is `~/.claude/plugins/cache/local/<name>/<version>/`.
 
@@ -62,9 +65,14 @@ Scan each plugin's install directory for:
 - `skills/*/SKILL.md` — bundled skills (read name + description from frontmatter)
 - `agents/*.md` — bundled agents (read name + description from frontmatter)
 - `commands/*.md` — bundled slash commands (read description from frontmatter)
-- `hooks/hooks.json` — bundled hooks (read event types and commands)
+- `hooks/hooks.json` — bundled hooks (read event types and commands). These hooks
+  are loaded automatically by the plugin system and should appear in the Global Hooks
+  table alongside user-defined hooks from `settings.json`.
+- `.orphaned_at` — if this file exists, note the plugin as orphaned (record the
+  timestamp from the file content for the Status column)
 
-If a plugin's install path doesn't exist on disk, record a validation warning.
+If a plugin's install path doesn't exist on disk, record a validation warning and
+mark the plugin as MISSING in the Plugins table.
 
 ---
 
@@ -182,15 +190,25 @@ system that generates it.
 
 ### Plugins
 
-| Plugin | Source | Origin | Version | Installed |
-|--------|--------|--------|---------|-----------|
-| {name} | {marketplace or "local"} | {installed/custom} | {version} | {date} |
+| Plugin | Source | Origin | Version | Status |
+|--------|--------|--------|---------|--------|
+| {name} | {marketplace or "local"} | {installed/custom} | {version} | {active / ORPHANED / MISSING} |
+
+For the Status column:
+- **active** — plugin directory exists and is not orphaned
+- **ORPHANED** — plugin has a `.orphaned_at` marker file in its install directory
+- **MISSING** — plugin is in `enabledPlugins` but has no entry in `installed_plugins.json` or no directory on disk
+
+This makes orphaned/missing plugins visible at a glance in the table itself, not buried in a separate Validation section.
 
 ### Plugin-Bundled Skills
 
+Group skills by plugin for readability. Within each plugin group, list skills alphabetically.
+
 | Skill | Plugin | Description |
 |-------|--------|-------------|
-| {skill name} | {plugin name} | {description from frontmatter} |
+| — | **{plugin name}** | — |
+| {skill name} | | {description from frontmatter} |
 
 ### Plugin-Bundled Agents
 
@@ -345,14 +363,41 @@ Write a machine-readable JSON sidecar to the project root with this structure:
 
 ### 6c. Write `.CLAUDE.automatons.hash`
 
-Compute an MD5 hash of the concatenation of all scanned config file contents plus
-directory listings (skills dirs). Write just the hash string to `.CLAUDE.automatons.hash`.
+Compute a hash of the key config files for staleness detection. Try the Bash approach
+first — if Bash is unavailable or fails, fall back to a Python one-liner, and if that
+also fails, write a timestamp-based fallback. The hash does NOT need to be
+cryptographically secure — it just needs to change when configs change.
 
-Use Bash:
+**Approach 1 — Bash (preferred):**
 ```bash
 hash_input=$(cat ~/.claude/settings.json ~/.claude/plugins/installed_plugins.json .claude/settings.json 2>/dev/null; ls ~/.claude/skills/ .claude/skills/ 2>/dev/null | sort)
-echo -n "$hash_input" | md5sum | cut -d' ' -f1 > .CLAUDE.automatons.hash
+printf '%s' "$hash_input" | md5sum | cut -d' ' -f1
 ```
+
+**Approach 2 — Python fallback (if Bash fails or is restricted):**
+```python
+import hashlib, os, json
+files = [os.path.expanduser("~/.claude/settings.json"), os.path.expanduser("~/.claude/plugins/installed_plugins.json"), ".claude/settings.json"]
+data = ""
+for f in files:
+    try: data += open(f).read()
+    except: pass
+for d in [os.path.expanduser("~/.claude/skills"), ".claude/skills"]:
+    try: data += "\n".join(sorted(os.listdir(d)))
+    except: pass
+print(hashlib.md5(data.encode()).hexdigest())
+```
+
+**Approach 3 — Timestamp fallback (last resort):**
+If neither Bash nor Python can compute a hash, write the current ISO-8601 timestamp
+instead. This means the hook will always see a "changed" hash and prompt regeneration,
+which is the safe default.
+
+Write the resulting hash string (or timestamp) to `.CLAUDE.automatons.hash`.
+
+**IMPORTANT:** Verify the hash is not the MD5 of an empty string (`d41d8cd98f00b204e9800998ecf8427e`
+or `e3b0c44298fc1c149afbf4c8996fb924` for SHA-256). If it is, the computation failed —
+fall back to the next approach.
 
 ---
 

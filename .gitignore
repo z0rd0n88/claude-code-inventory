@@ -1,3 +1,16 @@
+# Claude Code workspace
+.claude/
+CLAUDE.md
+.claude.local.md
+
 # Internal planning docs (not public)
 docs/NOVELTY.md
 docs/FUTURE.md
+
+# Eval workspace (large, machine-specific outputs)
+update-automatons-workspace/
+
+# Generated inventory files (from testing)
+.CLAUDE.automatons.md
+.CLAUDE.automatons.json
+.CLAUDE.automatons.hash

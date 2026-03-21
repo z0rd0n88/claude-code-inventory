@@ -1,0 +1,26 @@
+{
+  "skill_name": "update-automatons",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "List all my automations — hooks, skills, plugins, agents, MCP servers. Show me everything I have installed across global and project scope.",
+      "expected_output": "A .CLAUDE.automatons.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings) and Project Scope (hooks, MCP servers, skills, agents) sections, plus .CLAUDE.automatons.json and .CLAUDE.automatons.hash files. All items tagged as installed or custom.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "prompt": "What Claude Code skills and plugins do I have? Generate an inventory of my setup.",
+      "expected_output": "A .CLAUDE.automatons.md file showing Global Scope with all plugins and skills, but Project Scope should show 'No project-level automations configured' or minimal content since this project has no .claude/ directory with skills/agents.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "prompt": "I just installed some new plugins, update my automation inventory so it reflects the latest changes.",
+      "expected_output": "A regenerated .CLAUDE.automatons.md with a Recent Changes section showing additions/removals detected by comparing against the previous .CLAUDE.automatons.json. Updated .hash file.",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
