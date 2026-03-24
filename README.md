@@ -19,7 +19,7 @@ Claude Code's automation ecosystem grows fast. You install plugins, create custo
 
 There's no single place to see it all. This plugin creates that single place.
 
-## Current State (v1.0)
+## Current State (v1.1)
 
 **What works today:**
 
@@ -35,6 +35,9 @@ There's no single place to see it all. This plugin creates that single place.
 - Lightweight recommendations based on detected tech stack
 - Self-documenting — the inventory includes this plugin in its own output
 - Cross-platform — polyglot hook scripts work on Windows (Git Bash) and Unix
+- **MCP Auth State** — surfaces which MCP servers need re-authentication (from `~/.claude/mcp-needs-auth-cache.json`)
+- **Keybindings** — lists custom key bindings if `~/.claude/keybindings.json` exists (skeleton; omits section if file missing)
+- **CLAUDE.md Quality** — scores the project's CLAUDE.md against 8 criteria (dev commands, architecture, gotchas, etc.)
 
 **Known limitations:**
 
@@ -42,12 +45,13 @@ There's no single place to see it all. This plugin creates that single place.
 - Plugin-bundled hooks from `hooks/hooks.json` are discovered but the plugin system's auto-loading behavior isn't documented by Anthropic, so this is based on observed behavior
 - The hash check uses MD5 (fine for staleness detection, not for security)
 - First run requires manual `/inventory` invocation — the hook only *detects* staleness, it doesn't auto-regenerate
+- MCP Auth State currently only shows Claude.ai web app servers, not Claude Code CLI servers (under investigation)
 
 ## Future Direction
 
 The name "claude-code-inventory" leaves room to grow beyond automations. The JSON sidecar already supports extensibility — new sections slot in without breaking the existing structure.
 
-### Memory Files (v1.1)
+### Memory Files (v1.2)
 
 Claude Code stores per-project knowledge in `~/.claude/projects/<project-slug>/memory/` as markdown files with YAML frontmatter:
 
@@ -68,9 +72,8 @@ Memory types: `user`, `project`, `feedback`, `reference`. The inventory would li
 |------|------|-------------|
 | user_environment.md | user | Windows/Git Bash PATH quirks |
 | project_sms_feature.md | project | Twilio SMS gateway on sms branch |
-| project_update_automatons.md | project | Auto-generates .CLAUDE.inventory.md |
 
-Summary: 3 memory files (1 user, 2 project, 0 feedback, 0 reference)
+Summary: 2 memory files (1 user, 1 project, 0 feedback, 0 reference)
 ```
 
 **Complexity: Low.** Same YAML frontmatter parsing pattern already used for skills.
@@ -92,48 +95,29 @@ Note: `CronCreate` (the built-in tool) creates session-only ephemeral jobs — t
 
 **Complexity: Low-Medium.** Blocked on confirming the file format — the directory doesn't exist until the first task is created.
 
-### MCP Auth State (v1.1)
+### Plugin Health (v1.2)
 
-`~/.claude/mcp-needs-auth-cache.json` tracks which MCP servers need re-authentication. Auth tokens expire silently — the first sign of trouble is a failed tool call mid-session. The inventory would surface this proactively:
-
-```
-## MCP Auth State
-
-| Server | Auth Needed Since |
-|--------|------------------|
-| Google Calendar | 2026-03-16 04:30 |
-| Gmail | 2026-03-16 04:30 |
-```
-
-**Complexity: Low.** Single JSON file read with timestamp formatting.
-
-**Caveat:** Current data suggests this file only tracks Claude.ai web app servers, not Claude Code CLI MCP servers. Needs investigation.
-
-### Keybindings (v1.1)
-
-Custom keyboard shortcuts in `~/.claude/keybindings.json`. The file format is currently unknown (the file doesn't exist until the first custom binding is created), so this would be a skeleton implementation — show the data if the file exists, omit the section otherwise.
+Deeper analysis of the plugin ecosystem: orphaned versions (old cached versions with `.orphaned_at` markers), enabled-but-not-installed plugins, disk usage of orphaned versions, and update recency.
 
 ```
-## Keybindings
+## Plugin Health
 
-| Key | Action | Description |
-|-----|--------|-------------|
-| Ctrl+Shift+R | /inventory | Refresh automation inventory |
-| Ctrl+Shift+T | run-tests | Execute test suite |
+| Issue | Plugin | Details |
+|-------|--------|---------|
+| Enabled but not installed | railway | In enabledPlugins but missing from installed_plugins.json |
+| Orphaned versions | superpowers | 2 old versions consuming 12.1 MB |
 ```
 
-**Complexity: Low.** Skeleton now, flesh out when the format is known.
+**Complexity: Medium.**
 
 ### Further Out
 
 See [`docs/FUTURE.md`](docs/FUTURE.md) for detailed specs on additional planned features:
-- **Cross-project comparison** — compare configs across all projects in `~/.claude/projects/`
-- **Plugin health** — orphaned versions, enabled-but-not-installed, disk usage, update recency
-- **Permission audit** — group patterns by tool type, detect duplicates and overly broad rules (opt-in)
-- **CLAUDE.md quality** — lightweight quality score based on documented commands, architecture, gotchas
-- **Session usage patterns** — aggregate tool usage, session duration, success rates (opt-in)
-- **Install script** — `curl | bash` one-liner for easier adoption
-- **Marketplace distribution** — publish to `claude-plugins-official`
+- **Cross-project comparison** (v2.0) — compare configs across all projects in `~/.claude/projects/`
+- **Permission audit** (v2.0) — group patterns by tool type, detect duplicates and overly broad rules (opt-in)
+- **Session usage patterns** (v2.0) — aggregate tool usage, session duration, success rates (opt-in)
+- **Install script** (v2.1) — `curl | bash` one-liner for easier adoption
+- **Marketplace distribution** (v2.1) — publish to `claude-plugins-official`
 
 ## Example Output
 
