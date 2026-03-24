@@ -38,6 +38,8 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/plugins/installed_plugins.json` | Plugin names, versions, install dates, scope |
 | `~/.claude/plugins/blocklist.json` | Blocked plugin names and reasons |
 | `~/.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
+| `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-auth: keys = server display names, values = `{ "timestamp": <unix_ms> }`. If file missing, skip gracefully. |
+| `~/.claude/keybindings.json` | Custom keyboard shortcuts. File format TBD — if file exists, read as JSON and display key-action pairs. If file missing, skip gracefully. |
 
 ### Project scope (`.claude/` in project root)
 
@@ -46,6 +48,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `.claude/settings.json` | `hooks` (all events + matchers), `mcpServers` (all entries) |
 | `.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `.claude/agents/*.md` | Each agent's `name` and `description` from YAML frontmatter |
+| `CLAUDE.md` (project root) | Project instructions file. Read contents for quality scoring: check for dev commands, architecture, gotchas, environment setup, conventions, deployment, key file paths, and line count. |
 
 ### Local scope
 
@@ -270,6 +273,62 @@ Group skills by plugin for readability. Within each plugin group, list skills al
 
 ---
 
+## MCP Auth State
+
+(Include only if `~/.claude/mcp-needs-auth-cache.json` exists and has entries. Otherwise omit this entire section.)
+
+| Server | Auth Needed Since |
+|--------|------------------|
+| {server display name, strip "claude.ai " prefix if present} | {convert unix ms timestamp to YYYY-MM-DD HH:MM local time} |
+
+---
+
+## Keybindings
+
+(Include only if `~/.claude/keybindings.json` exists and is valid JSON with entries. Otherwise omit this entire section.)
+
+Display the keybindings as a table. The exact columns depend on the file format — at minimum show:
+
+| Key | Action |
+|-----|--------|
+| {key combination} | {bound action or command} |
+
+If the file format contains additional fields (description, context, etc.), include those as extra columns.
+
+---
+
+## CLAUDE.md Quality
+
+(Include only if `CLAUDE.md` exists in the project root. Otherwise omit this entire section.)
+
+Score the project's CLAUDE.md against these criteria by scanning for section headings containing relevant keywords (case-insensitive):
+
+- **Dev commands**: headings with "commands", "scripts", "dev commands", "build", "run"
+- **Architecture**: headings with "architecture", "structure", "overview", "design"
+- **Gotchas**: headings with "gotchas", "known issues", "caveats", "warnings", "pitfalls"
+- **Environment setup**: headings with "environment", "setup", "prerequisites", "requirements", "installation"
+- **Conventions**: headings with "conventions", "style", "coding standards", "formatting", "naming"
+- **Deployment**: headings with "deploy", "deployment", "release", "production" — mark "not applicable" if project has no deployment
+- **Key file paths**: look for backtick-wrapped file paths (e.g., `src/`, `lib/`, `skills/`)
+- **Length**: count lines — ≤200 = good, 201-400 = long, >400 = excessive
+
+| Criterion | Status |
+|-----------|--------|
+| Dev commands | {present (N commands) / missing} |
+| Architecture | {present / missing} |
+| Gotchas | {present (N items) / missing} |
+| Environment setup | {present / missing} |
+| Conventions | {present / missing} |
+| Deployment | {present / not applicable / missing} |
+| Key file paths | {present / partial / missing} |
+| Length | {N lines (good/long/excessive)} |
+
+Score: {N}/8 criteria met
+
+If `claude-md-management` plugin is installed (check `enabledPlugins`), append: "Run `/claude-md-management:claude-md-improver` for detailed CLAUDE.md analysis and improvements."
+
+---
+
 ## Validation
 
 (Include only if Phase 3 found warnings. Otherwise omit.)
@@ -350,6 +409,29 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     },
     "local": {
       "permissionCount": 0
+    }
+  },
+  "mcpAuthState": [
+    {
+      "server": "Google Calendar",
+      "needsAuthSince": "2026-03-16T04:30:15.584Z"
+    }
+  ],
+  "keybindings": [],
+  "claudeMdQuality": {
+    "exists": true,
+    "lineCount": 85,
+    "score": 8,
+    "maxScore": 8,
+    "criteria": {
+      "devCommands": true,
+      "architecture": true,
+      "gotchas": true,
+      "environment": true,
+      "conventions": true,
+      "deployment": "not_applicable",
+      "keyPaths": "partial",
+      "length": "good"
     }
   },
   "validation": [

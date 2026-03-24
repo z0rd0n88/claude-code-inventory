@@ -4,7 +4,7 @@
     {
       "id": 0,
       "prompt": "List all my automations — hooks, skills, plugins, agents, MCP servers. Show me everything I have installed across global and project scope.",
-      "expected_output": "A .CLAUDE.automatons.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings) and Project Scope (hooks, MCP servers, skills, agents) sections, plus .CLAUDE.automatons.json and .CLAUDE.automatons.hash files. All items tagged as installed or custom.",
+      "expected_output": "A .CLAUDE.automatons.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings), Project Scope (hooks, MCP servers, skills, agents), MCP Auth State section (if ~/.claude/mcp-needs-auth-cache.json exists), Keybindings section (if ~/.claude/keybindings.json exists), and CLAUDE.md Quality section (if CLAUDE.md exists in project root, with 8-criteria scoring table), plus .CLAUDE.automatons.json (with mcpAuthState, keybindings, and claudeMdQuality keys) and .CLAUDE.automatons.hash files. All items tagged as installed or custom.",
       "files": [],
       "assertions": []
     },
