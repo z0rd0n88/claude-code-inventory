@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart hook: check if .CLAUDE.automatons.md needs regeneration
+# SessionStart hook: check if .CLAUDE.inventory.md needs regeneration
 set -euo pipefail
 
 # Only act in git repos
@@ -8,25 +8,25 @@ set -euo pipefail
 stale=false
 
 # Check 1: File missing
-if [ ! -f ".CLAUDE.automatons.md" ]; then
+if [ ! -f ".CLAUDE.inventory.md" ]; then
     stale=true
 fi
 
 # Check 2: File older than 24 hours
-if [ "$stale" = false ] && [ -f ".CLAUDE.automatons.md" ]; then
+if [ "$stale" = false ] && [ -f ".CLAUDE.inventory.md" ]; then
     now=$(date +%s)
     if [ "$(uname -s)" = "Darwin" ]; then
-        file_mod=$(stat -f %m ".CLAUDE.automatons.md" 2>/dev/null || echo 0)
+        file_mod=$(stat -f %m ".CLAUDE.inventory.md" 2>/dev/null || echo 0)
     else
         # Linux and Git Bash on Windows
-        file_mod=$(stat -c %Y ".CLAUDE.automatons.md" 2>/dev/null || echo 0)
+        file_mod=$(stat -c %Y ".CLAUDE.inventory.md" 2>/dev/null || echo 0)
     fi
     file_age=$(( now - file_mod ))
     [ "$file_age" -gt 86400 ] && stale=true
 fi
 
 # Check 3: Config hash changed (catches plugin installs/removals immediately)
-if [ "$stale" = false ] && [ -f ".CLAUDE.automatons.hash" ]; then
+if [ "$stale" = false ] && [ -f ".CLAUDE.inventory.hash" ]; then
     current_hash=""
 
     # Build hash input from key config files + directory listings
@@ -44,13 +44,13 @@ if [ "$stale" = false ] && [ -f ".CLAUDE.automatons.hash" ]; then
     fi
 
     if [ -n "$current_hash" ]; then
-        stored_hash=$(cat ".CLAUDE.automatons.hash" 2>/dev/null || echo "")
+        stored_hash=$(cat ".CLAUDE.inventory.hash" 2>/dev/null || echo "")
         [ "$current_hash" != "$stored_hash" ] && stale=true
     fi
 fi
 
 if $stale; then
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "Automation inventory (.CLAUDE.automatons.md) is missing, stale, or configs have changed. Run /update-automatons to regenerate."\n  }\n}\n'
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "Automation inventory (.CLAUDE.inventory.md) is missing, stale, or configs have changed. Run /inventory to regenerate."\n  }\n}\n'
 fi
 
 exit 0

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/plugins/cache/local/update-automatons/1.0.0/hooks/update-automatons.cmd"
+            "command": "~/.claude/plugins/cache/local/inventory/1.0.0/hooks/inventory.cmd"
           }
         ]
       }

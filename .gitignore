@@ -8,9 +8,9 @@ docs/NOVELTY.md
 docs/FUTURE.md
 
 # Eval workspace (large, machine-specific outputs)
-update-automatons-workspace/
+inventory-workspace/
 
 # Generated inventory files (from testing)
-.CLAUDE.automatons.md
-.CLAUDE.automatons.json
-.CLAUDE.automatons.hash
+.CLAUDE.inventory.md
+.CLAUDE.inventory.json
+.CLAUDE.inventory.hash

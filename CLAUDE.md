@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**claude-code-inventory** is a Claude Code plugin that auto-generates a unified inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) across global, project, and local scopes. It produces `.CLAUDE.automatons.md` (human-readable), `.CLAUDE.automatons.json` (machine-readable), and `.CLAUDE.automatons.hash` (staleness detection).
+**claude-code-inventory** is a Claude Code plugin that auto-generates a unified inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) across global, project, and local scopes. It produces `.CLAUDE.inventory.md` (human-readable), `.CLAUDE.inventory.json` (machine-readable), and `.CLAUDE.inventory.hash` (staleness detection).
 
 **Version:** 1.0.0
 **License:** MIT
@@ -14,17 +14,17 @@
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin metadata (name, version, category)
 ├── commands/
-│   └── update-automatons.md     # /update-automatons slash command definition
+│   └── inventory.md     # /inventory slash command definition
 ├── evals/
 │   └── evals.json               # Evaluation test cases (3 scenarios)
 ├── examples/
 │   └── sample-output.md         # Real-world example of generated output
 ├── hooks/
 │   ├── hooks.json               # SessionStart hook registration
-│   ├── update-automatons.cmd    # Polyglot Windows+Unix wrapper
-│   └── update-automatons.sh     # Bash staleness detection script
+│   ├── inventory.cmd    # Polyglot Windows+Unix wrapper
+│   └── inventory.sh     # Bash staleness detection script
 ├── skills/
-│   └── update-automatons/
+│   └── inventory/
 │       └── SKILL.md             # Core 7-phase generation logic (434 lines)
 ├── README.md                    # Full documentation
 └── CLAUDE.md                    # This file
@@ -41,15 +41,15 @@
 
 ### Core Flow
 
-1. **SessionStart hook** (`hooks/update-automatons.sh`) runs on every session start
+1. **SessionStart hook** (`hooks/inventory.sh`) runs on every session start
 2. Hook performs lightweight staleness detection (file age > 24h or config hash changed)
 3. If stale, hook outputs a JSON message prompting Claude to regenerate
-4. **Skill** (`skills/update-automatons/SKILL.md`) executes 7-phase generation:
+4. **Skill** (`skills/inventory/SKILL.md`) executes 7-phase generation:
    - Discovery → Classification → Validation → Change Detection → Recommendations → Generation → Gitignore
 
 ### Key Design Patterns
 
-- **Polyglot wrapper**: `update-automatons.cmd` works as both batch (Windows) and bash (Unix)
+- **Polyglot wrapper**: `inventory.cmd` works as both batch (Windows) and bash (Unix)
 - **Three-tier staleness**: Missing file → age-based (24h) → config hash comparison (MD5)
 - **Multi-format output**: `.md` for humans, `.json` for tools, `.hash` for fast staleness checks
 - **Self-documenting**: The inventory lists the plugin itself among discovered automations
@@ -67,8 +67,8 @@
 
 ### Naming Conventions
 
-- **Files**: dash-separated lowercase (`update-automatons`, not `updateAutomatons`)
-- **Output files**: `.CLAUDE.automatons.*` prefix (dot-prefixed, distinct namespace)
+- **Files**: dash-separated lowercase (`inventory`, not `updateAutomatons`)
+- **Output files**: `.CLAUDE.inventory.*` prefix (dot-prefixed, distinct namespace)
 - **Frontmatter**: YAML blocks delimited by `---` at top of `.md` files
 
 ### JSON Style
@@ -101,18 +101,18 @@ No formal test runner — evaluation framework is for future expansion.
 
 | File | Why It Matters |
 |------|---------------|
-| `skills/update-automatons/SKILL.md` | Core logic — all 7 generation phases, output templates, edge cases |
-| `hooks/update-automatons.sh` | Staleness detection — platform-aware stat, MD5 hashing, fallbacks |
-| `commands/update-automatons.md` | Slash command entry point — frontmatter + invocation instructions |
+| `skills/inventory/SKILL.md` | Core logic — all 7 generation phases, output templates, edge cases |
+| `hooks/inventory.sh` | Staleness detection — platform-aware stat, MD5 hashing, fallbacks |
+| `commands/inventory.md` | Slash command entry point — frontmatter + invocation instructions |
 | `.claude-plugin/plugin.json` | Plugin identity — name, version, category for marketplace |
 
 ## Common Tasks
 
 ### Modifying generation logic
-Edit `skills/update-automatons/SKILL.md`. The 7 phases are clearly delineated with headers.
+Edit `skills/inventory/SKILL.md`. The 7 phases are clearly delineated with headers.
 
 ### Changing staleness thresholds
-Edit `hooks/update-automatons.sh`. The 24-hour threshold is in the age comparison logic.
+Edit `hooks/inventory.sh`. The 24-hour threshold is in the age comparison logic.
 
 ### Adding new config sources
 Update the Discovery phase in `SKILL.md` to read additional files, then update Classification and Generation phases to include the new data.
