@@ -69,11 +69,13 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 
 | Source file | Extract |
 |-------------|---------|
-| `.claude/settings.json` | `hooks` (all events + matchers), `mcpServers` (all entries) |
+| `.claude/settings.json` | `hooks` (all events + matchers), `mcpServers` (all entries — for each server, check if it has `toolSearch` or deferred tool configuration to determine loading strategy) |
 | `.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `.claude/agents/*.md` | Each agent's `name` and `description` from YAML frontmatter |
 | `CLAUDE.md` (project root) | Project instructions file. Read contents for quality scoring: check for dev commands, architecture, gotchas, environment setup, conventions, deployment, key file paths, and line count. |
 | `**/CLAUDE.md` (max 3 levels deep) | Subdirectory instruction files. Use Glob with pattern `{*/CLAUDE.md,*/*/CLAUDE.md,*/*/*/CLAUDE.md}` to find them. For each, count lines. Exclude `node_modules/`, `.git/`, and other common vendored directories. |
+
+**Deferred tools enumeration:** At generation time, invoke `ToolSearch` with a broad query (e.g., `"*"` or `"list all"`) to enumerate currently deferred/lazy-loaded tools. For each tool returned, record its name, the MCP server it belongs to, and its description. If MCP servers are unavailable or ToolSearch returns an error, skip this step gracefully and note "Deferred tools: unable to query — MCP server unavailable" in the output.
 
 ### Local scope
 
@@ -352,9 +354,23 @@ Sequence numbers continue from the global hooks for the same event type. Project
 
 ### MCP Servers
 
-| Name | Type | Package/URL | Origin |
-|------|------|-------------|--------|
-| {name} | {npx/http/stdio} | {package or url} | {custom/installed} |
+| Name | Type | Package/URL | Origin | Loading |
+|------|------|-------------|--------|---------|
+| {name} | {npx/http/stdio} | {package or url} | {custom/installed} | {eager / deferred (N tools)} |
+
+For the Loading column:
+- **eager** — all tools loaded into context immediately
+- **deferred (N tools)** — tools lazy-loaded via Tool Search; N is the count of deferred tools for this server
+
+### Deferred Tools
+
+(Include only if any MCP servers use deferred/lazy loading. Otherwise omit this sub-section.)
+
+| Tool | MCP Server | Description |
+|------|-----------|-------------|
+| {tool name, e.g. mcp__github__create_issue} | {server name} | {tool description} |
+
+If ToolSearch was unavailable at generation time, show: "Deferred tools: unable to query — MCP servers unavailable at generation time."
 
 ### Skills
 
@@ -635,6 +651,10 @@ Write a machine-readable JSON sidecar to the project root with this structure:
       "effectiveScope": "project"
     }
   ],
+  "deferredTools": [
+    { "tool": "mcp__github__create_issue", "server": "github", "description": "Create a new issue" },
+    { "tool": "mcp__github__list_prs", "server": "github", "description": "List pull requests" }
+  ],
   "validation": [
     { "level": "warning", "item": "...", "message": "..." }
   ],
@@ -734,3 +754,7 @@ If not found, append:
 - **Global mode:** Skip settings conflict detection entirely (only one scope to read).
 - **MCP scheduled-tasks server unavailable:** Fall back to filesystem-only discovery. All tasks shown as `source: local`. Do not show an error — degrade gracefully.
 - **Remote task has same taskId as local task:** Show both rows with different source values. This is an unusual state but not an error.
+- **No MCP servers configured:** MCP Servers table shows "No MCP servers configured." Deferred Tools sub-section omitted.
+- **ToolSearch unavailable at generation time:** Show MCP Servers table without Loading column data (or mark all as "unknown"). Show note instead of Deferred Tools table.
+- **All MCP servers use eager loading:** Omit the Deferred Tools sub-section. Loading column shows "eager" for all.
+- **Global mode:** Deferred Tools section is omitted (MCP servers are project-scoped).
