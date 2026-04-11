@@ -392,7 +392,7 @@ If any validation warnings were found for memory files (orphaned files or broken
 
 ## Scheduled Tasks
 
-(Include only if `~/.claude/scheduled-tasks/` exists and contains task subdirectories. Otherwise omit this entire section.)
+(Include only if local scheduled tasks exist in `~/.claude/scheduled-tasks/` OR remote triggers were discovered via the MCP tool. Otherwise omit this entire section.)
 
 | Task ID | Description | Schedule | Enabled | Source |
 |---------|-------------|----------|---------|--------|
