@@ -4,7 +4,7 @@
 
 **claude-code-inventory** is a Claude Code plugin that auto-generates a unified inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) across global, project, and local scopes. It produces `.CLAUDE.inventory.md` (human-readable), `.CLAUDE.inventory.json` (machine-readable), and `.CLAUDE.inventory.hash` (staleness detection).
 
-**Version:** 1.0.0
+**Version:** 1.2.0
 **License:** MIT
 **Author:** z0rd0n88
 
@@ -15,8 +15,14 @@
 │   └── plugin.json              # Plugin metadata (name, version, category)
 ├── commands/
 │   └── inventory.md     # /inventory slash command definition
+├── docs/
+│   └── superpowers/
+│       ├── plans/
+│       │   └── 2026-04-11-inventory-v12-deep-scan.md
+│       └── specs/
+│           └── 2026-04-11-inventory-v12-v21-design.md
 ├── evals/
-│   └── evals.json               # Evaluation test cases (3 scenarios)
+│   └── evals.json               # Evaluation test cases (5 scenarios)
 ├── examples/
 │   └── sample-output.md         # Real-world example of generated output
 ├── hooks/
@@ -90,10 +96,12 @@
 
 ### Testing
 
-Evaluations are defined in `evals/evals.json` with 3 test scenarios:
+Evaluations are defined in `evals/evals.json` with 5 test scenarios:
 1. Full inventory listing (both scopes)
 2. Skills/plugins only (handles missing `.claude/`)
 3. Regeneration after plugin install (detects Recent Changes)
+4. Memory files, scheduled tasks, and plugin health status
+5. Hook execution order and CLAUDE.md hierarchy
 
 No formal test runner — evaluation framework is for future expansion.
 

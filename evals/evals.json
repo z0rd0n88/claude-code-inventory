@@ -21,6 +21,20 @@
       "expected_output": "A regenerated .CLAUDE.inventory.md with a Recent Changes section showing additions/removals detected by comparing against the previous .CLAUDE.inventory.json. Updated .hash file.",
       "files": [],
       "assertions": []
+    },
+    {
+      "id": 3,
+      "prompt": "Show me my memory files, scheduled tasks, and plugin health status.",
+      "expected_output": "A .CLAUDE.inventory.md file containing: Memory Files section with file/type/description table and summary counts, Scheduled Tasks section (or omitted if no tasks), Plugin Health section with orphaned versions and potential issues sub-tables. JSON sidecar includes memory, scheduledTasks, and pluginHealth keys with schemaVersion: 2.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 4,
+      "prompt": "Generate an inventory and show me the execution order of all my hooks and the full CLAUDE.md hierarchy.",
+      "expected_output": "A .CLAUDE.inventory.md where the Global Hooks table has a # column showing sequence numbers (global settings hooks first, then plugin-bundled hooks, then project hooks). CLAUDE.md Quality section includes a Hierarchy sub-table listing all CLAUDE.md files from ~/.claude/CLAUDE.md through subdirectories with line counts and scope labels, followed by the quality score for the project root CLAUDE.md.",
+      "files": [],
+      "assertions": []
     }
   ]
 }
