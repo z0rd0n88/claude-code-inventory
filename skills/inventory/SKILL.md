@@ -62,6 +62,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/keybindings.json` | Custom keyboard shortcuts. File format TBD — if file exists, read as JSON and display key-action pairs. If file missing, skip gracefully. |
 | `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. |
 | `~/.claude/scheduled-tasks/*/` | Persistent scheduled tasks. For each subdirectory, read the task definition file (likely `SKILL.md` or a JSON file) to extract: task ID (directory name), description, schedule (cron expression or one-time `fireAt`), and enabled state. If the directory does not exist, skip entirely. |
+| `~/.claude/settings.json` (security keys) | Check for `sandboxMode`, `dangerouslySkipPermissions`, and any sandbox-related configuration. Also detect the OS via `uname -s` to determine if PID namespace isolation is available (Linux only). |
 
 **Remote triggers:** In addition to reading the filesystem, also invoke `mcp__scheduled-tasks__list_scheduled_tasks` at generation time to query active remote triggers managed by Anthropic's infrastructure. If the MCP server is unavailable, fall back to filesystem-only discovery. For each task returned by the MCP tool that doesn't match a local filesystem task (by taskId), mark it as `source: "remote"`.
 
@@ -323,6 +324,16 @@ Group skills by plugin for readability. Within each plugin group, list skills al
 ### Settings
 
 - effortLevel: {value}
+
+### Security
+
+| Setting | Value | Scope |
+|---------|-------|-------|
+| Sandbox mode | {enabled (PID namespace) / enabled (basic) / disabled / N/A (not Linux)} | {global/project} |
+| dangerouslySkipPermissions | {true/false} | {global} |
+| Permission entries | {count from settings.local.json} | {local} |
+
+If `dangerouslySkipPermissions` is `true`, add a warning note: "**Warning:** Permissions bypass is enabled. All tool calls execute without confirmation."
 
 ### Plugin Health
 
@@ -674,6 +685,12 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     { "source": "hooks/test-watcher.sh", "type": "hook", "description": "Test suite output (PostToolUse)" },
     { "source": "skills/deploy/SKILL.md", "type": "skill", "description": "Deployment log streaming" }
   ],
+  "security": {
+    "sandboxMode": "pid_namespace",
+    "dangerouslySkipPermissions": false,
+    "permissionCount": 127,
+    "os": "linux"
+  },
   "validation": [
     { "level": "warning", "item": "...", "message": "..." }
   ],
