@@ -77,6 +77,16 @@ Scan each plugin's install directory for:
 If a plugin's install path doesn't exist on disk, record a validation warning and
 mark the plugin as MISSING in the Plugins table.
 
+### Hook execution order
+
+When collecting hooks, track the order they will execute. Hooks fire in this sequence:
+
+1. Global hooks from `~/.claude/settings.json` (array order within each event)
+2. Plugin-bundled hooks from each enabled plugin's `hooks/hooks.json` (in the order plugins appear in `enabledPlugins`)
+3. Project hooks from `.claude/settings.json` (array order within each event)
+
+Assign a sequence number to each hook, resetting to 1 for each event type. This order determines the `#` column in the output tables.
+
 ---
 
 ## Phase 2 — Classification
@@ -179,11 +189,13 @@ system that generates it.
 
 ## Global Scope (`~/.claude/`)
 
-### Hooks
+### Hooks (by execution order)
 
-| Event | Command | Origin | Description |
-|-------|---------|--------|-------------|
-| {event} | {script basename} | {custom/installed} | {what it does} |
+| # | Event | Command | Origin | Source | Description |
+|---|-------|---------|--------|--------|-------------|
+| {seq} | {event} | {script basename} | {custom/installed} | {global settings / plugin name} | {what it does} |
+
+Sequence numbers reset to 1 for each event type. Order: global settings hooks first, then plugin-bundled hooks (in enabledPlugins order).
 
 ### Skills
 
@@ -243,9 +255,11 @@ Group skills by plugin for readability. Within each plugin group, list skills al
 
 ### Hooks
 
-| Event | Matcher | Action | Origin |
-|-------|---------|--------|--------|
-| {event} | {matcher or "—"} | {what it does} | {custom/installed} |
+| # | Event | Matcher | Action | Origin |
+|---|-------|---------|--------|--------|
+| {seq} | {event} | {matcher or "—"} | {what it does} | {custom/installed} |
+
+Sequence numbers continue from the global hooks for the same event type. Project hooks always execute after global and plugin hooks.
 
 ### MCP Servers
 
@@ -373,7 +387,7 @@ Write a machine-readable JSON sidecar to the project root with this structure:
   "scopes": {
     "global": {
       "hooks": [
-        { "event": "...", "command": "...", "origin": "custom|installed", "description": "..." }
+        { "event": "...", "command": "...", "origin": "custom|installed", "source": "global settings|<plugin name>", "order": 1, "description": "..." }
       ],
       "skills": [
         { "name": "...", "origin": "custom|installed", "description": "..." }
@@ -397,7 +411,7 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     },
     "project": {
       "hooks": [
-        { "event": "...", "matcher": "...", "action": "...", "origin": "custom|installed" }
+        { "event": "...", "matcher": "...", "action": "...", "origin": "custom|installed", "order": 4 }
       ],
       "mcpServers": [
         { "name": "...", "type": "...", "package": "...", "origin": "custom|installed" }
