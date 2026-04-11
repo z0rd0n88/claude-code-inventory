@@ -40,6 +40,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-auth: keys = server display names, values = `{ "timestamp": <unix_ms> }`. If file missing, skip gracefully. |
 | `~/.claude/keybindings.json` | Custom keyboard shortcuts. File format TBD — if file exists, read as JSON and display key-action pairs. If file missing, skip gracefully. |
+| `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. |
 
 ### Project scope (`.claude/` in project root)
 
@@ -49,6 +50,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `.claude/agents/*.md` | Each agent's `name` and `description` from YAML frontmatter |
 | `CLAUDE.md` (project root) | Project instructions file. Read contents for quality scoring: check for dev commands, architecture, gotchas, environment setup, conventions, deployment, key file paths, and line count. |
+| `**/CLAUDE.md` (max 3 levels deep) | Subdirectory instruction files. Use Glob with pattern `{*/CLAUDE.md,*/*/CLAUDE.md,*/*/*/CLAUDE.md}` to find them. For each, count lines. Exclude `node_modules/`, `.git/`, and other common vendored directories. |
 
 ### Local scope
 
@@ -313,7 +315,24 @@ If the file format contains additional fields (description, context, etc.), incl
 
 ## CLAUDE.md Quality
 
-(Include only if `CLAUDE.md` exists in the project root. Otherwise omit this entire section.)
+(Include only if at least one CLAUDE.md exists — global, project root, or subdirectory. Otherwise omit this entire section.)
+
+### Hierarchy
+
+List all discovered CLAUDE.md files in scope order:
+
+| Path | Lines | Scope |
+|------|-------|-------|
+| ~/.claude/CLAUDE.md | {line count} | global |
+| ./CLAUDE.md | {line count} | project root |
+| ./{subdir}/CLAUDE.md | {line count} | subdirectory |
+
+If `~/.claude/CLAUDE.md` does not exist, omit it from the table.
+If no subdirectory CLAUDE.md files are found, only show the rows that exist.
+
+### Quality Score (project root)
+
+(Include this sub-section only if `CLAUDE.md` exists in the project root.)
 
 Score the project's CLAUDE.md against these criteria by scanning for section headings containing relevant keywords (case-insensitive):
 
@@ -450,6 +469,11 @@ Write a machine-readable JSON sidecar to the project root with this structure:
       "length": "good"
     }
   },
+  "claudeMdHierarchy": [
+    { "path": "~/.claude/CLAUDE.md", "lines": 12, "scope": "global" },
+    { "path": "./CLAUDE.md", "lines": 85, "scope": "project_root" },
+    { "path": "./packages/api/CLAUDE.md", "lines": 24, "scope": "subdirectory" }
+  ],
   "validation": [
     { "level": "warning", "item": "...", "message": "..." }
   ],
@@ -530,3 +554,5 @@ If not found, append:
 - **No previous `.CLAUDE.inventory.json` (first run):** Skip change detection, omit Recent Changes.
 - **No `pyproject.toml` or `package.json`:** Omit Recommendations or provide generic suggestions.
 - **Skill frontmatter missing `description`:** Use the skill directory name as fallback.
+- **No CLAUDE.md files at all:** Omit the entire CLAUDE.md Quality section (global, project root, and subdirectories all missing).
+- **Only global CLAUDE.md exists:** Show hierarchy table with just the global row. Omit Quality Score sub-section.
