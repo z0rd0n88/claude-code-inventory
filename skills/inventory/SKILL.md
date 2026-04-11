@@ -58,6 +58,19 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 |-------------|---------|
 | `.claude/settings.local.json` | Count of `permissions.allow` entries only (do NOT list individual entries) |
 
+### Memory files
+
+Claude Code stores per-project knowledge in memory files with YAML frontmatter.
+
+| Source file | Extract |
+|-------------|---------|
+| `~/.claude/projects/<slug>/memory/MEMORY.md` | Index file — parse markdown links to map which files are referenced |
+| `~/.claude/projects/<slug>/memory/*.md` (excluding MEMORY.md) | Each file's `name`, `description`, and `type` from YAML frontmatter |
+
+**Deriving the project slug:** Convert the current project's absolute path to a slug by replacing path separators with `--` and drive letters with `{letter}-`. Example: `C:\Users\sneak\Documents\MyProject` becomes `C--Users-sneak-Documents-MyProject`.
+
+If `~/.claude/projects/<slug>/memory/` does not exist, skip this section entirely.
+
 ### Plugin-bundled content
 
 **This step is critical and must always run, even if the project has no `.claude/` directory.**
@@ -106,6 +119,7 @@ Tag every discovered item as `installed`, `custom`, or `blocked`:
 | Hook defined in user's `settings.json` (global or project, not from a plugin) | `custom` |
 | MCP server in project `.claude/settings.json` | `custom` by default |
 | MCP server known to come from a plugin (e.g., `github` from `github@claude-plugins-official`) | `installed` |
+| Memory file in `~/.claude/projects/<slug>/memory/` | `custom` |
 | Plugin listed in `~/.claude/plugins/blocklist.json` | `blocked` |
 
 ---
@@ -121,6 +135,8 @@ Check that every referenced automation actually exists on disk. Collect warnings
 | Plugin not orphaned | Check for `.orphaned_at` file in plugin install dir | `[!] Plugin orphaned since <date>` |
 | Plugin dir exists | Verify install path from installed_plugins.json exists | `[!] Plugin directory not found: <path>` |
 | MCP command available | Use Bash: `command -v <cmd>` for npx/node/etc. | `[!] MCP command not available: <cmd>` |
+| Memory file not in index | Parse `MEMORY.md` links; check each `.md` file in `memory/` is referenced | `[!] Memory file not in MEMORY.md index: <filename>` |
+| Index references missing file | For each link in `MEMORY.md`, check the target file exists in `memory/` | `[!] MEMORY.md references missing file: <filename>` |
 
 Include all warnings in the Validation section of the output. If no warnings, omit the section.
 
@@ -133,6 +149,9 @@ If `.CLAUDE.inventory.json` already exists from a previous generation:
 1. Read the existing JSON file
 2. Build a set of `{name}:{scope}:{type}` keys from the old data
 3. Build the same set from the newly discovered data
+
+For memory files, use the key format `{filename}:memory:memory_file`. This ensures additions and removals of memory files appear in the Recent Changes section.
+
 4. Items in new but not old → "Added"
 5. Items in old but not new → "Removed"
 6. Include a "Recent Changes" section at the top of the markdown
@@ -286,6 +305,20 @@ Sequence numbers continue from the global hooks for the same event type. Project
 ## Local Scope (`.claude/settings.local.json`)
 
 - Permissions: {count} allowlisted entries (user-specific, not listed)
+
+---
+
+## Memory Files
+
+(Include only if `~/.claude/projects/<slug>/memory/` exists and contains `.md` files other than `MEMORY.md`. Otherwise omit this entire section.)
+
+| File | Type | Description |
+|------|------|-------------|
+| {filename} | {type from frontmatter} | {description from frontmatter} |
+
+Summary: {total} memory files ({N} user, {N} project, {N} feedback, {N} reference)
+
+If any validation warnings were found for memory files (orphaned files or broken links), they will appear in the Validation section.
 
 ---
 
@@ -446,6 +479,14 @@ Write a machine-readable JSON sidecar to the project root with this structure:
       "permissionCount": 0
     }
   },
+  "memory": {
+    "files": [
+      { "filename": "user_environment.md", "type": "user", "name": "User Environment", "description": "Shell and tool PATH quirks" }
+    ],
+    "summary": { "total": 1, "user": 1, "project": 0, "feedback": 0, "reference": 0 },
+    "orphaned": ["unlinked_note.md"],
+    "brokenLinks": ["deleted_memory.md"]
+  },
   "mcpAuthState": [
     {
       "server": "Google Calendar",
@@ -556,3 +597,7 @@ If not found, append:
 - **Skill frontmatter missing `description`:** Use the skill directory name as fallback.
 - **No CLAUDE.md files at all:** Omit the entire CLAUDE.md Quality section (global, project root, and subdirectories all missing).
 - **Only global CLAUDE.md exists:** Show hierarchy table with just the global row. Omit Quality Score sub-section.
+- **No memory directory for this project:** Omit the Memory Files section entirely.
+- **Memory directory exists but is empty:** Omit the Memory Files section.
+- **MEMORY.md index missing but memory files exist:** List the files, report all as orphaned in Validation.
+- **Memory file has no YAML frontmatter:** Use the filename (without `.md`) as the name, "unknown" as the type, and "No frontmatter" as the description.
