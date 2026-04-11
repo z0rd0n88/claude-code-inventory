@@ -93,6 +93,19 @@ Scan each plugin's install directory for:
 If a plugin's install path doesn't exist on disk, record a validation warning and
 mark the plugin as MISSING in the Plugins table.
 
+### Plugin health analysis
+
+After scanning plugin-bundled content, perform these additional checks:
+
+1. **Orphaned versions:** For each plugin in `~/.claude/plugins/cache/` (both `claude-plugins-official/` and `local/` marketplaces), list all version subdirectories. Any version directory containing a `.orphaned_at` file is orphaned. Record:
+   - Plugin name and marketplace
+   - List of orphaned version strings
+   - Disk usage of each orphaned version directory (use Bash: `du -sh <path>` — if this fails on Windows, skip disk usage and show "N/A")
+
+2. **Enabled but not installed:** For each key in `enabledPlugins` from `~/.claude/settings.json`, check if a matching entry exists in `installed_plugins.json`. If not, record the plugin as "enabled but not installed."
+
+3. **Update recency:** For each plugin in `installed_plugins.json`, check the `lastUpdated` field. If more than 30 days old (compared to the current date), flag as potentially stale.
+
 ### Hook execution order
 
 When collecting hooks, track the order they will execute. Hooks fire in this sequence:
@@ -270,6 +283,29 @@ Group skills by plugin for readability. Within each plugin group, list skills al
 ### Settings
 
 - effortLevel: {value}
+
+### Plugin Health
+
+(Include only if orphaned versions, enabled-but-not-installed plugins, or stale plugins are detected. Otherwise omit.)
+
+#### Orphaned Versions (cleanup candidates)
+
+| Plugin | Orphaned Versions | Disk Usage |
+|--------|-------------------|------------|
+| {plugin name} | {count} old versions | {total size, e.g. "4.2 MB"} |
+
+Total reclaimable: ~{sum} MB
+
+(Omit this sub-section if no orphaned versions exist.)
+
+#### Potential Issues
+
+| Issue | Plugin | Details |
+|-------|--------|---------|
+| Enabled but not installed | {plugin name} | In enabledPlugins but not in installed_plugins.json |
+| Not updated in 30+ days | {plugin name} | Last updated {YYYY-MM-DD} |
+
+(Omit this sub-section if no issues detected.)
 
 ---
 
@@ -491,6 +527,16 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     "local": {
       "permissionCount": 0
     }
+  },
+  "pluginHealth": {
+    "orphanedVersions": [
+      { "plugin": "github", "marketplace": "claude-plugins-official", "versions": ["78497c524da3", "d5c15b861cd2"], "diskUsageMB": 4.2 }
+    ],
+    "enabledButNotInstalled": ["railway@claude-plugins-official"],
+    "stalePlugins": [
+      { "plugin": "claude-code-setup", "lastUpdated": "2026-03-15T14:27:30.313Z", "daysSinceUpdate": 27 }
+    ],
+    "totalReclaimableMB": 32.0
   },
   "memory": {
     "files": [
