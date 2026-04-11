@@ -36,6 +36,10 @@ if [ "$stale" = false ] && [ -f ".CLAUDE.inventory.hash" ]; then
     hash_input+=$(ls "$HOME/.claude/skills/" 2>/dev/null | sort)
     [ -f ".claude/settings.json" ] && hash_input+=$(cat ".claude/settings.json" 2>/dev/null)
     hash_input+=$(ls ".claude/skills/" 2>/dev/null | sort)
+    # v1.2: include memory files, scheduled tasks, and orphan markers
+    hash_input+=$(ls "$HOME"/.claude/projects/*/memory/ 2>/dev/null | sort)
+    hash_input+=$(ls "$HOME/.claude/scheduled-tasks/" 2>/dev/null | sort)
+    hash_input+=$(find "$HOME/.claude/plugins/cache/" -name '.orphaned_at' 2>/dev/null | sort)
 
     if command -v md5sum &>/dev/null; then
         current_hash=$(printf '%s' "$hash_input" | md5sum | cut -d' ' -f1)

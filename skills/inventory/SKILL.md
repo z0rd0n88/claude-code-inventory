@@ -602,20 +602,26 @@ cryptographically secure — it just needs to change when configs change.
 
 **Approach 1 — Bash (preferred):**
 ```bash
-hash_input=$(cat ~/.claude/settings.json ~/.claude/plugins/installed_plugins.json .claude/settings.json 2>/dev/null; ls ~/.claude/skills/ .claude/skills/ 2>/dev/null | sort)
+hash_input=$(cat ~/.claude/settings.json ~/.claude/plugins/installed_plugins.json .claude/settings.json 2>/dev/null; ls ~/.claude/skills/ .claude/skills/ 2>/dev/null | sort; ls ~/.claude/projects/*/memory/ 2>/dev/null | sort; ls ~/.claude/scheduled-tasks/ 2>/dev/null | sort; find ~/.claude/plugins/cache/ -name '.orphaned_at' 2>/dev/null | sort)
 printf '%s' "$hash_input" | md5sum | cut -d' ' -f1
 ```
 
 **Approach 2 — Python fallback (if Bash fails or is restricted):**
 ```python
-import hashlib, os, json
+import hashlib, os, glob
 files = [os.path.expanduser("~/.claude/settings.json"), os.path.expanduser("~/.claude/plugins/installed_plugins.json"), ".claude/settings.json"]
 data = ""
 for f in files:
     try: data += open(f).read()
     except: pass
-for d in [os.path.expanduser("~/.claude/skills"), ".claude/skills"]:
+for d in [os.path.expanduser("~/.claude/skills"), ".claude/skills", os.path.expanduser("~/.claude/scheduled-tasks")]:
     try: data += "\n".join(sorted(os.listdir(d)))
+    except: pass
+for pattern in [os.path.expanduser("~/.claude/projects/*/memory/")]:
+    try: data += "\n".join(sorted(glob.glob(pattern + "*.md")))
+    except: pass
+for f in sorted(glob.glob(os.path.expanduser("~/.claude/plugins/cache/**/.orphaned_at"), recursive=True)):
+    try: data += f
     except: pass
 print(hashlib.md5(data.encode()).hexdigest())
 ```
