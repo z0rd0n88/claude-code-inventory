@@ -20,11 +20,13 @@
 ├── docs/
 │   └── superpowers/
 │       ├── plans/
-│       │   └── 2026-04-11-inventory-v12-deep-scan.md
+│       │   ├── 2026-04-11-inventory-v12-deep-scan.md
+│       │   ├── 2026-04-11-inventory-v20-global-view.md
+│       │   └── 2026-04-11-inventory-v21-capabilities.md
 │       └── specs/
 │           └── 2026-04-11-inventory-v12-v21-design.md
 ├── evals/
-│   └── evals.json               # Evaluation test cases (7 scenarios)
+│   └── evals.json               # Evaluation test cases (8 scenarios)
 ├── examples/
 │   └── sample-output.md         # Real-world example of generated output
 ├── hooks/
@@ -33,7 +35,7 @@
 │   └── inventory.sh     # Bash staleness detection script
 ├── skills/
 │   └── inventory/
-│       └── SKILL.md             # Core 7-phase generation logic (~680 lines)
+│       └── SKILL.md             # Core 7-phase generation logic (~800 lines)
 ├── README.md                    # Full documentation
 └── CLAUDE.md                    # This file
 ```
@@ -99,7 +101,7 @@
 
 ### Testing
 
-Evaluations are defined in `evals/evals.json` with 7 test scenarios:
+Evaluations are defined in `evals/evals.json` with 8 test scenarios:
 1. Full inventory listing (both scopes)
 2. Skills/plugins only (handles missing `.claude/`)
 3. Regeneration after plugin install (detects Recent Changes)
@@ -107,6 +109,7 @@ Evaluations are defined in `evals/evals.json` with 7 test scenarios:
 5. Hook execution order and CLAUDE.md hierarchy
 6. Global-only inventory via `/inventory-global`
 7. Cross-project comparison via `/inventory-compare`
+8. Deferred tools, monitor tracking, and sandbox security
 
 No formal test runner — evaluation framework is for future expansion.
 

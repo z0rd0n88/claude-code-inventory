@@ -19,105 +19,66 @@ Claude Code's automation ecosystem grows fast. You install plugins, create custo
 
 There's no single place to see it all. This plugin creates that single place.
 
-## Current State (v1.1)
+## Current State (v2.1)
 
-**What works today:**
+**Three commands:**
 
-- Generates `.CLAUDE.inventory.md` — a human-readable inventory with markdown tables
-- Generates `.CLAUDE.inventory.json` — a machine-readable sidecar for tooling
-- Generates `.CLAUDE.inventory.hash` — config hash for smart staleness detection
-- All files are gitignored automatically
+| Command | What It Does | Output Location |
+|---------|-------------|-----------------|
+| `/inventory` | Per-project inventory (global + project + local scopes) | Project root |
+| `/inventory-global` | Global-only inventory (plugins, skills, hooks) | `~/.claude/` |
+| `/inventory-compare` | Cross-project comparison matrix | `~/.claude/` |
+
+**Core features (v1.0-v1.1):**
+
+- Generates `.CLAUDE.inventory.md`, `.CLAUDE.inventory.json`, `.CLAUDE.inventory.hash`
 - Tags every item as `installed` (from marketplace), `custom` (user-created), or `blocked`
 - Organizes by scope: Global → Project → Local
-- SessionStart hook with three-tier staleness detection
+- SessionStart hook with three-tier staleness detection (missing → age → hash)
 - Validates that referenced automations exist on disk
 - Detects changes between regenerations (additions/removals)
 - Lightweight recommendations based on detected tech stack
 - Self-documenting — the inventory includes this plugin in its own output
 - Cross-platform — polyglot hook scripts work on Windows (Git Bash) and Unix
-- **MCP Auth State** — surfaces which MCP servers need re-authentication (from `~/.claude/mcp-needs-auth-cache.json`)
-- **Keybindings** — lists custom key bindings if `~/.claude/keybindings.json` exists (skeleton; omits section if file missing)
-- **CLAUDE.md Quality** — scores the project's CLAUDE.md against 8 criteria (dev commands, architecture, gotchas, etc.)
+- MCP Auth State, Keybindings, CLAUDE.md Quality scoring (8 criteria)
+
+**v1.2 "Deep Scan" features:**
+
+- **Memory Files** — indexes per-project memory files with orphan/broken-link detection
+- **Scheduled Tasks** — lists persistent scheduled tasks with schedule and enabled state
+- **Plugin Health** — orphaned versions with disk usage, enabled-but-not-installed detection, update recency
+- **CLAUDE.md Hierarchy** — maps the full chain: global → project root → subdirectories
+- **Hook Execution Order** — sequence numbers showing actual load order across scopes
+- **JSON Schema Versioning** — `schemaVersion` field for downstream tool compatibility
+
+**v2.0 "Global View" features:**
+
+- **Global Standalone Mode** — `/inventory-global` generates global-only inventory to `~/.claude/`
+- **Cross-Project Comparison** — `/inventory-compare` aggregates config across all projects with inconsistency detection
+- **Settings Conflict Detection** — surfaces scope overrides (global vs project vs local) with effective values
+- **Remote Triggers** — distinguishes local vs remote scheduled tasks via MCP tool integration
+
+**v2.1 "Capabilities" features:**
+
+- **Deferred Tools Inventory** — shows which MCP tools use lazy loading via Tool Search
+- **Monitor Tool Tracking** — detects Monitor tool and `run_in_background` usage in skills/hooks
+- **Sandbox Configuration** — reports security posture (sandbox mode, `dangerouslySkipPermissions`, permission count)
 
 **Known limitations:**
 
-- The SKILL.md is a prompt, not executable code — Claude interprets and executes it, so output quality depends on the model
-- Plugin-bundled hooks from `hooks/hooks.json` are discovered but the plugin system's auto-loading behavior isn't documented by Anthropic, so this is based on observed behavior
+- The SKILL.md is a prompt, not executable code — output quality depends on the model
+- Plugin-bundled hooks from `hooks/hooks.json` are discovered but auto-loading behavior isn't documented by Anthropic
 - The hash check uses MD5 (fine for staleness detection, not for security)
-- First run requires manual `/inventory` invocation — the hook only *detects* staleness, it doesn't auto-regenerate
-- MCP Auth State currently only shows Claude.ai web app servers, not Claude Code CLI servers (under investigation)
+- First run requires manual `/inventory` invocation — the hook only *detects* staleness
+- MCP Auth State currently only shows Claude.ai web app servers, not Claude Code CLI servers
 
 ## Future Direction
 
-The name "claude-code-inventory" leaves room to grow beyond automations. The JSON sidecar already supports extensibility — new sections slot in without breaking the existing structure.
-
-### Memory Files (v1.2)
-
-Claude Code stores per-project knowledge in `~/.claude/projects/<project-slug>/memory/` as markdown files with YAML frontmatter:
-
-```yaml
----
-name: SMS/RCS Feature
-description: Twilio SMS gateway on the sms branch
-type: project
----
-```
-
-Memory types: `user`, `project`, `feedback`, `reference`. The inventory would list each file's name, type, and description — plus detect orphaned files (not in `MEMORY.md` index) and broken links (index references missing file).
-
-```
-## Memory Files
-
-| File | Type | Description |
-|------|------|-------------|
-| user_environment.md | user | Windows/Git Bash PATH quirks |
-| project_sms_feature.md | project | Twilio SMS gateway on sms branch |
-
-Summary: 2 memory files (1 user, 1 project, 0 feedback, 0 reference)
-```
-
-**Complexity: Low.** Same YAML frontmatter parsing pattern already used for skills.
-
-### Scheduled Tasks (v1.2)
-
-Persistent scheduled tasks (created via `mcp__scheduled-tasks__create_scheduled_task`) are stored at `~/.claude/scheduled-tasks/{taskId}/SKILL.md`. Each has a taskId, description, cron expression or one-time fireAt, and enabled state.
-
-```
-## Scheduled Tasks
-
-| Task ID | Description | Schedule | Enabled |
-|---------|-------------|----------|---------|
-| check-inbox | Check email for urgent items | weekdays 9am | yes |
-| weekly-report | Generate project report | Fridays 5pm | no |
-```
-
-Note: `CronCreate` (the built-in tool) creates session-only ephemeral jobs — those aren't inventoried since they die with the session. Only persistent MCP-based tasks are included.
-
-**Complexity: Low-Medium.** Blocked on confirming the file format — the directory doesn't exist until the first task is created.
-
-### Plugin Health (v1.2)
-
-Deeper analysis of the plugin ecosystem: orphaned versions (old cached versions with `.orphaned_at` markers), enabled-but-not-installed plugins, disk usage of orphaned versions, and update recency.
-
-```
-## Plugin Health
-
-| Issue | Plugin | Details |
-|-------|--------|---------|
-| Enabled but not installed | railway | In enabledPlugins but missing from installed_plugins.json |
-| Orphaned versions | superpowers | 2 old versions consuming 12.1 MB |
-```
-
-**Complexity: Medium.**
-
-### Further Out
-
-See [`docs/FUTURE.md`](docs/FUTURE.md) for detailed specs on additional planned features:
-- **Cross-project comparison** (v2.0) — compare configs across all projects in `~/.claude/projects/`
-- **Permission audit** (v2.0) — group patterns by tool type, detect duplicates and overly broad rules (opt-in)
-- **Session usage patterns** (v2.0) — aggregate tool usage, session duration, success rates (opt-in)
-- **Install script** (v2.1) — `curl | bash` one-liner for easier adoption
-- **Marketplace distribution** (v2.1) — publish to `claude-plugins-official`
+See [`docs/FUTURE.md`](docs/FUTURE.md) for detailed specs on remaining planned features:
+- **Permission audit** — group patterns by tool type, detect duplicates and overly broad rules (opt-in)
+- **Session usage patterns** — aggregate tool usage, session duration, success rates (opt-in)
+- **Install script** — `curl | bash` one-liner for easier adoption
+- **Marketplace distribution** — publish to `claude-plugins-official`
 
 ## Example Output
 
@@ -297,7 +258,7 @@ The core logic lives in [`skills/inventory/SKILL.md`](skills/inventory/SKILL.md)
 | **6. Generation** | Write `.md`, `.json`, `.hash` files | Write |
 | **7. Gitignore** | Append entries if missing | Grep, Edit |
 
-The skill is ~350 lines of structured instructions with explicit file paths, classification rules, output templates, and edge case handling. See the [full source](skills/inventory/SKILL.md).
+The skill is ~800 lines of structured instructions with explicit file paths, classification rules, output templates, and edge case handling. It supports two modes (project and global) and covers 20+ output sections. See the [full source](skills/inventory/SKILL.md).
 
 ### Plugin Metadata
 
@@ -305,7 +266,7 @@ The skill is ~350 lines of structured instructions with explicit file paths, cla
 {
   "name": "inventory",
   "description": "Auto-generates .CLAUDE.inventory.md — a comprehensive inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) ordered by scope and tagged as installed or custom.",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "category": "documentation",
   "source": {
     "source": "local"
@@ -337,21 +298,23 @@ The plugin bundles its own hook via `hooks/hooks.json` — the plugin system loa
 ## Plugin Structure
 
 ```
-inventory/1.0.0/
+inventory/2.1.0/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin metadata (name, version, category)
 ├── commands/
-│   └── inventory.md     # /inventory slash command entry point
+│   ├── inventory.md             # /inventory slash command (project mode)
+│   ├── inventory-global.md      # /inventory-global slash command (global mode)
+│   └── inventory-compare.md     # /inventory-compare slash command (cross-project)
 ├── skills/
 │   └── inventory/
-│       └── SKILL.md             # 7-phase generation instructions (~350 lines)
+│       └── SKILL.md             # 7-phase generation instructions (~800 lines)
 └── hooks/
     ├── hooks.json               # SessionStart hook registration
-    ├── inventory.sh     # Bash staleness detection (56 lines)
-    └── inventory.cmd    # Polyglot Windows+Unix wrapper (7 lines)
+    ├── inventory.sh             # Bash staleness detection (61 lines)
+    └── inventory.cmd            # Polyglot Windows+Unix wrapper (7 lines)
 ```
 
-**Total: 6 files, ~430 lines.**
+**Total: 9 files, ~900 lines.**
 
 ## Installation
 
@@ -397,7 +360,7 @@ You'll need to tell Claude to "run the inventory skill" manually.
 | Slash command (`/inventory`) | No | Yes |
 | Bundled SessionStart hook | No (manual settings.json edit) | Yes (auto-loaded) |
 | Clean enable/disable | Delete the file | Toggle in `enabledPlugins` |
-| Files | 1 | 6 |
+| Files | 1 | 9 |
 
 ### Why Three Output Files?
 
@@ -419,14 +382,21 @@ A tool that inventories automations but doesn't list itself is a blind spot. The
 
 | File | What's Extracted |
 |------|-----------------|
-| `~/.claude/settings.json` | Hooks, enabledPlugins, effortLevel |
+| `~/.claude/settings.json` | Hooks, enabledPlugins, effortLevel, sandbox/security config |
 | `~/.claude/plugins/installed_plugins.json` | Plugin names, versions, install dates |
 | `~/.claude/plugins/blocklist.json` | Blocked plugins and reasons |
+| `~/.claude/plugins/cache/` | Orphaned versions (`.orphaned_at` markers), disk usage |
 | `~/.claude/skills/*/SKILL.md` | Global skill names and descriptions |
-| `.claude/settings.json` | Project hooks, MCP servers |
+| `~/.claude/keybindings.json` | Custom keyboard shortcuts |
+| `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-authentication |
+| `~/.claude/CLAUDE.md` | Global user instructions (line count) |
+| `~/.claude/scheduled-tasks/*/` | Persistent scheduled task definitions |
+| `~/.claude/projects/<slug>/memory/` | Per-project memory files with YAML frontmatter |
+| `.claude/settings.json` | Project hooks, MCP servers (with deferred tool config) |
 | `.claude/skills/*/SKILL.md` | Project skill names and descriptions |
 | `.claude/agents/*.md` | Project agent names and descriptions |
 | `.claude/settings.local.json` | Permission count (entries not listed) |
+| `CLAUDE.md`, `**/CLAUDE.md` | Project instructions hierarchy (root + subdirectories) |
 | Plugin install directories | Bundled skills, agents, commands, hooks |
 
 ## License
