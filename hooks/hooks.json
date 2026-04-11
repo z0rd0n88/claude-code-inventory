@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/plugins/cache/local/inventory/1.0.0/hooks/inventory.cmd"
+            "command": "~/.claude/plugins/cache/local/inventory/2.1.0/hooks/inventory.cmd"
           }
         ]
       }

@@ -37,7 +37,7 @@ The mode determines which Phase 1 discovery sources are read, which Phase 6 outp
 **In Global mode, skip these entirely:**
 - Phase 1: Project scope, Local scope, Memory files (project-specific)
 - Phase 5: Recommendations (requires project tech stack detection)
-- Phase 6a: Project Scope section, Local Scope section, Memory Files section, CLAUDE.md Quality Score sub-section (hierarchy table still shows global CLAUDE.md if it exists), Settings Conflicts section
+- Phase 6a: Project Scope section, Local Scope section, Memory Files section, CLAUDE.md Quality Score sub-section (hierarchy table still shows global CLAUDE.md if it exists), Settings Conflicts section, Security section "Permission entries" row (local-scope data unavailable)
 - Phase 6a header: Use `> Regenerate: `/inventory-global`` instead of `> Regenerate: `/inventory``
 - Phase 6a output path: Write to `~/.claude/.CLAUDE.inventory.md` instead of project root
 - Phase 6b output path: Write to `~/.claude/.CLAUDE.inventory.json` instead of project root
@@ -333,6 +333,8 @@ Group skills by plugin for readability. Within each plugin group, list skills al
 | dangerouslySkipPermissions | {true/false} | {global} |
 | Permission entries | {count from settings.local.json} | {local} |
 
+(In global mode, omit the "Permission entries" row — `settings.local.json` is project-scoped and not read in global mode.)
+
 If `dangerouslySkipPermissions` is `true`, add a warning note: "**Warning:** Permissions bypass is enabled. All tool calls execute without confirmation."
 
 ### Plugin Health
@@ -598,7 +600,7 @@ Write a machine-readable JSON sidecar to the project root with this structure:
         { "event": "...", "matcher": "...", "action": "...", "origin": "custom|installed", "order": 4 }
       ],
       "mcpServers": [
-        { "name": "...", "type": "...", "package": "...", "origin": "custom|installed" }
+        { "name": "...", "type": "...", "package": "...", "origin": "custom|installed", "loading": "eager|deferred", "deferredToolCount": 0 }
       ],
       "skills": [
         { "name": "...", "origin": "custom|installed", "description": "..." }
