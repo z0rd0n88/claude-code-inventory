@@ -31,7 +31,7 @@
 │   └── inventory.sh     # Bash staleness detection script
 ├── skills/
 │   └── inventory/
-│       └── SKILL.md             # Core 7-phase generation logic (434 lines)
+│       └── SKILL.md             # Core 7-phase generation logic (~680 lines)
 ├── README.md                    # Full documentation
 └── CLAUDE.md                    # This file
 ```
@@ -65,9 +65,10 @@
 
 | Scope   | Sources |
 |---------|---------|
-| Global  | `~/.claude/settings.json`, `~/.claude/plugins/installed_plugins.json`, `~/.claude/plugins/blocklist.json`, `~/.claude/skills/*/SKILL.md` |
-| Project | `.claude/settings.json`, `.claude/skills/*/SKILL.md`, `.claude/agents/*.md` |
+| Global  | `~/.claude/settings.json`, `~/.claude/plugins/installed_plugins.json`, `~/.claude/plugins/blocklist.json`, `~/.claude/skills/*/SKILL.md`, `~/.claude/mcp-needs-auth-cache.json`, `~/.claude/keybindings.json`, `~/.claude/CLAUDE.md`, `~/.claude/scheduled-tasks/*/`, `~/.claude/plugins/cache/` (orphan markers) |
+| Project | `.claude/settings.json`, `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `CLAUDE.md`, `**/CLAUDE.md` (subdirectories) |
 | Local   | `.claude/settings.local.json` (permission count only) |
+| Memory  | `~/.claude/projects/<slug>/memory/MEMORY.md`, `~/.claude/projects/<slug>/memory/*.md` |
 
 ## Development Guide
 
