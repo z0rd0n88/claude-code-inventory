@@ -63,6 +63,8 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. |
 | `~/.claude/scheduled-tasks/*/` | Persistent scheduled tasks. For each subdirectory, read the task definition file (likely `SKILL.md` or a JSON file) to extract: task ID (directory name), description, schedule (cron expression or one-time `fireAt`), and enabled state. If the directory does not exist, skip entirely. |
 
+**Remote triggers:** In addition to reading the filesystem, also invoke `mcp__scheduled-tasks__list_scheduled_tasks` at generation time to query active remote triggers managed by Anthropic's infrastructure. If the MCP server is unavailable, fall back to filesystem-only discovery. For each task returned by the MCP tool that doesn't match a local filesystem task (by taskId), mark it as `source: "remote"`.
+
 ### Project scope (`.claude/` in project root)
 
 | Source file | Extract |
@@ -392,9 +394,9 @@ If any validation warnings were found for memory files (orphaned files or broken
 
 (Include only if `~/.claude/scheduled-tasks/` exists and contains task subdirectories. Otherwise omit this entire section.)
 
-| Task ID | Description | Schedule | Enabled |
-|---------|-------------|----------|---------|
-| {directory name} | {description from task definition} | {cron expression or fireAt timestamp} | {yes/no} |
+| Task ID | Description | Schedule | Enabled | Source |
+|---------|-------------|----------|---------|--------|
+| {directory name or taskId} | {description} | {cron expression or fireAt timestamp} | {yes/no} | {local/remote} |
 
 Note: Only persistent tasks (created via `mcp__scheduled-tasks__create_scheduled_task`) are listed. Session-only ephemeral jobs from `CronCreate` are not inventoried since they die with the session.
 
@@ -730,3 +732,5 @@ If not found, append:
 - **Task definition format unrecognized:** List the task ID but mark description as "Unable to parse task definition".
 - **No settings conflicts (all keys unique per scope):** Omit the Settings Conflicts section entirely.
 - **Global mode:** Skip settings conflict detection entirely (only one scope to read).
+- **MCP scheduled-tasks server unavailable:** Fall back to filesystem-only discovery. All tasks shown as `source: local`. Do not show an error — degrade gracefully.
+- **Remote task has same taskId as local task:** Show both rows with different source values. This is an unusual state but not an error.
