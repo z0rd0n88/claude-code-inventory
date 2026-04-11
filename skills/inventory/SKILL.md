@@ -1,13 +1,14 @@
 ---
 name: inventory
 description: >
-  Generate or update .CLAUDE.inventory.md — a comprehensive inventory of all
-  Claude Code automations (hooks, skills, plugins, agents, MCP servers) ordered
-  by scope, with each item tagged as installed or custom. Use when the user says
-  "update automatons", "list my automations", "what skills/hooks do I have",
-  "refresh automation inventory", or when the SessionStart hook reports the
-  inventory is missing or stale. Also run after /claude-code-setup:claude-automation-recommender
-  to capture new recommendations.
+  Generate or update automation inventory files. Operates in two modes:
+  **Project mode** (default, invoked via `/inventory`): scans global + project + local
+  scopes, writes `.CLAUDE.inventory.md` to the project root.
+  **Global mode** (invoked via `/inventory-global`): scans global scope only,
+  writes `.CLAUDE.inventory.md` to `~/.claude/`.
+  Use when the user says "update automatons", "list my automations", "what skills/hooks
+  do I have", "refresh automation inventory", or when the SessionStart hook reports
+  the inventory is missing or stale.
 ---
 
 # Update Automatons — Automation Inventory Generator
@@ -23,6 +24,25 @@ organized by scope and tagged as **installed** (from a plugin/marketplace) or
 - User invokes `/inventory`
 - After running `/claude-code-setup:claude-automation-recommender`
 - After installing, removing, or updating plugins, skills, or MCP servers
+
+## Mode
+
+This skill operates in one of two modes based on how it was invoked:
+
+- **Project mode** (default): Invoked via `/inventory`. Scans global + project + local scopes. Writes output to the current project root. Requires being inside a project directory.
+- **Global mode**: Invoked via `/inventory-global`. Scans global scope only — skips all project-scope and local-scope reads. Writes output to `~/.claude/`. Works from any directory.
+
+The mode determines which Phase 1 discovery sources are read, which Phase 6 output sections are generated, and where output files are written.
+
+**In Global mode, skip these entirely:**
+- Phase 1: Project scope, Local scope, Memory files (project-specific)
+- Phase 5: Recommendations (requires project tech stack detection)
+- Phase 6a: Project Scope section, Local Scope section, Memory Files section, CLAUDE.md Quality Score sub-section (hierarchy table still shows global CLAUDE.md if it exists), Settings Conflicts section
+- Phase 6a header: Use `> Regenerate: `/inventory-global`` instead of `> Regenerate: `/inventory``
+- Phase 6a output path: Write to `~/.claude/.CLAUDE.inventory.md` instead of project root
+- Phase 6b output path: Write to `~/.claude/.CLAUDE.inventory.json` instead of project root
+- Phase 6c output path: Write to `~/.claude/.CLAUDE.inventory.hash` instead of project root
+- Phase 7: Skip gitignore step (not in a project)
 
 ---
 
