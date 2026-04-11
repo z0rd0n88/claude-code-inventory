@@ -41,6 +41,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-auth: keys = server display names, values = `{ "timestamp": <unix_ms> }`. If file missing, skip gracefully. |
 | `~/.claude/keybindings.json` | Custom keyboard shortcuts. File format TBD — if file exists, read as JSON and display key-action pairs. If file missing, skip gracefully. |
 | `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. |
+| `~/.claude/scheduled-tasks/*/` | Persistent scheduled tasks. For each subdirectory, read the task definition file (likely `SKILL.md` or a JSON file) to extract: task ID (directory name), description, schedule (cron expression or one-time `fireAt`), and enabled state. If the directory does not exist, skip entirely. |
 
 ### Project scope (`.claude/` in project root)
 
@@ -322,6 +323,18 @@ If any validation warnings were found for memory files (orphaned files or broken
 
 ---
 
+## Scheduled Tasks
+
+(Include only if `~/.claude/scheduled-tasks/` exists and contains task subdirectories. Otherwise omit this entire section.)
+
+| Task ID | Description | Schedule | Enabled |
+|---------|-------------|----------|---------|
+| {directory name} | {description from task definition} | {cron expression or fireAt timestamp} | {yes/no} |
+
+Note: Only persistent tasks (created via `mcp__scheduled-tasks__create_scheduled_task`) are listed. Session-only ephemeral jobs from `CronCreate` are not inventoried since they die with the session.
+
+---
+
 ## MCP Auth State
 
 (Include only if `~/.claude/mcp-needs-auth-cache.json` exists and has entries. Otherwise omit this entire section.)
@@ -487,6 +500,16 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     "orphaned": ["unlinked_note.md"],
     "brokenLinks": ["deleted_memory.md"]
   },
+  "scheduledTasks": [
+    {
+      "taskId": "check-inbox",
+      "description": "Check email for urgent items",
+      "cronExpression": "0 9 * * 1-5",
+      "fireAt": null,
+      "enabled": true,
+      "source": "local"
+    }
+  ],
   "mcpAuthState": [
     {
       "server": "Google Calendar",
@@ -601,3 +624,6 @@ If not found, append:
 - **Memory directory exists but is empty:** Omit the Memory Files section.
 - **MEMORY.md index missing but memory files exist:** List the files, report all as orphaned in Validation.
 - **Memory file has no YAML frontmatter:** Use the filename (without `.md`) as the name, "unknown" as the type, and "No frontmatter" as the description.
+- **No `~/.claude/scheduled-tasks/` directory:** Omit the Scheduled Tasks section entirely.
+- **Task subdirectory exists but has no definition file:** Record `[!] Scheduled task has no definition: <taskId>` in Validation. Still list the task with "unknown" description.
+- **Task definition format unrecognized:** List the task ID but mark description as "Unable to parse task definition".
