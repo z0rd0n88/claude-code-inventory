@@ -92,6 +92,15 @@ Claude Code stores per-project knowledge in memory files with YAML frontmatter.
 
 If `~/.claude/projects/<slug>/memory/` does not exist, skip this section entirely.
 
+### Settings conflict detection (project mode only)
+
+In project mode, after reading all three settings files (`~/.claude/settings.json`, `.claude/settings.json`, `.claude/settings.local.json`), compare their top-level keys. For any key that appears in more than one scope, record:
+- The key name
+- The value at each scope (or null if absent)
+- Which scope provides the effective value (most specific wins: local > project > global)
+
+Skip this step entirely in global mode.
+
 ### Plugin-bundled content
 
 **This step is critical and must always run, even if the project has no `.claude/` directory.**
@@ -464,6 +473,16 @@ If `claude-md-management` plugin is installed (check `enabledPlugins`), append: 
 
 ---
 
+## Settings Conflicts
+
+(Project mode only. Include only if overlapping keys were found across scopes. Otherwise omit this entire section. Skip entirely in global mode.)
+
+| Setting | Global | Project | Local | Effective |
+|---------|--------|---------|-------|-----------|
+| {key} | {value or "--"} | {value or "--"} | {value or "--"} | {value} ({winning scope}) |
+
+---
+
 ## Validation
 
 (Include only if Phase 3 found warnings. Otherwise omit.)
@@ -604,6 +623,16 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     { "path": "./CLAUDE.md", "lines": 85, "scope": "project_root" },
     { "path": "./packages/api/CLAUDE.md", "lines": 24, "scope": "subdirectory" }
   ],
+  "settingsConflicts": [
+    {
+      "key": "effortLevel",
+      "global": "high",
+      "project": "low",
+      "local": null,
+      "effective": "low",
+      "effectiveScope": "project"
+    }
+  ],
   "validation": [
     { "level": "warning", "item": "...", "message": "..." }
   ],
@@ -699,3 +728,5 @@ If not found, append:
 - **No `~/.claude/scheduled-tasks/` directory:** Omit the Scheduled Tasks section entirely.
 - **Task subdirectory exists but has no definition file:** Record `[!] Scheduled task has no definition: <taskId>` in Validation. Still list the task with "unknown" description.
 - **Task definition format unrecognized:** List the task ID but mark description as "Unable to parse task definition".
+- **No settings conflicts (all keys unique per scope):** Omit the Settings Conflicts section entirely.
+- **Global mode:** Skip settings conflict detection entirely (only one scope to read).
