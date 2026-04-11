@@ -1,7 +1,7 @@
 {
   "name": "inventory",
   "description": "Auto-generates .CLAUDE.inventory.md — a comprehensive inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) ordered by scope and tagged as installed or custom.",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "category": "documentation",
   "source": {
     "source": "local"

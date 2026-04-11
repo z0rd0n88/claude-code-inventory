@@ -35,6 +35,20 @@
       "expected_output": "A .CLAUDE.inventory.md where the Global Hooks table has a # column showing sequence numbers (global settings hooks first, then plugin-bundled hooks, then project hooks). CLAUDE.md Quality section includes a Hierarchy sub-table listing all CLAUDE.md files from ~/.claude/CLAUDE.md through subdirectories with line counts and scope labels, followed by the quality score for the project root CLAUDE.md.",
       "files": [],
       "assertions": []
+    },
+    {
+      "id": 5,
+      "prompt": "Generate a global-only inventory of my Claude Code setup. I want to see just my global plugins, skills, hooks, and settings — no project-specific stuff.",
+      "expected_output": "A ~/.claude/.CLAUDE.inventory.md file containing only Global Scope sections: hooks, skills, plugins, plugin-bundled content, blocked plugins, settings, plugin health. No Project Scope, Local Scope, Memory Files, or Recommendations sections. Header shows 'Regenerate: /inventory-global'. JSON sidecar at ~/.claude/.CLAUDE.inventory.json with schemaVersion: 3.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 6,
+      "prompt": "Compare the automations across all my projects. Show me what each project has and flag any inconsistencies.",
+      "expected_output": "A ~/.claude/.CLAUDE.cross-project.md file with a Summary table showing counts (hooks, MCP servers, skills, agents, memory files, CLAUDE.md status) per project, plus an Inconsistencies table flagging projects missing CLAUDE.md or hooks. Worktree slugs filtered out. JSON sidecar at ~/.claude/.CLAUDE.cross-project.json.",
+      "files": [],
+      "assertions": []
     }
   ]
 }
