@@ -77,6 +77,13 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 
 **Deferred tools enumeration:** At generation time, invoke `ToolSearch` with a broad query (e.g., `"*"` or `"list all"`) to enumerate currently deferred/lazy-loaded tools. For each tool returned, record its name, the MCP server it belongs to, and its description. If MCP servers are unavailable or ToolSearch returns an error, skip this step gracefully and note "Deferred tools: unable to query — MCP server unavailable" in the output.
 
+**Background monitoring detection:** Search for Monitor tool usage in project automations:
+- Grep project skills (`.claude/skills/*/SKILL.md`) for references to `Monitor` tool (case-insensitive: "Monitor", "monitor tool", "background monitor")
+- Grep hook scripts referenced in `.claude/settings.json` for `run_in_background` patterns
+- Check `.claude/settings.json` for any monitor-related configuration keys
+
+This is detection-only — report where monitoring is configured, not whether monitors are currently running. Skip in global mode (project-scoped feature).
+
 ### Local scope
 
 | Source file | Extract |
@@ -372,6 +379,14 @@ For the Loading column:
 
 If ToolSearch was unavailable at generation time, show: "Deferred tools: unable to query — MCP servers unavailable at generation time."
 
+### Background Monitoring
+
+(Include only if Monitor tool usage or run_in_background patterns are detected in project skills or hooks. Otherwise omit this sub-section. Skip in global mode.)
+
+| Source | Type | What's Monitored |
+|--------|------|-----------------|
+| {file path relative to project} | {hook/skill} | {brief description of what's being monitored} |
+
 ### Skills
 
 | Name | Origin | Description |
@@ -655,6 +670,10 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     { "tool": "mcp__github__create_issue", "server": "github", "description": "Create a new issue" },
     { "tool": "mcp__github__list_prs", "server": "github", "description": "List pull requests" }
   ],
+  "monitoring": [
+    { "source": "hooks/test-watcher.sh", "type": "hook", "description": "Test suite output (PostToolUse)" },
+    { "source": "skills/deploy/SKILL.md", "type": "skill", "description": "Deployment log streaming" }
+  ],
   "validation": [
     { "level": "warning", "item": "...", "message": "..." }
   ],
@@ -758,3 +777,6 @@ If not found, append:
 - **ToolSearch unavailable at generation time:** Show MCP Servers table without Loading column data (or mark all as "unknown"). Show note instead of Deferred Tools table.
 - **All MCP servers use eager loading:** Omit the Deferred Tools sub-section. Loading column shows "eager" for all.
 - **Global mode:** Deferred Tools section is omitted (MCP servers are project-scoped).
+- **No Monitor tool usage detected:** Omit the Background Monitoring sub-section entirely.
+- **Hook script references run_in_background but doesn't use Monitor:** Still list it — the pattern suggests background process management even without explicit Monitor tool usage.
+- **Global mode:** Skip monitoring detection entirely (project-scoped feature).
