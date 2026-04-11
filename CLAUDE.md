@@ -4,7 +4,7 @@
 
 **claude-code-inventory** is a Claude Code plugin that auto-generates a unified inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) across global, project, and local scopes. It produces `.CLAUDE.inventory.md` (human-readable), `.CLAUDE.inventory.json` (machine-readable), and `.CLAUDE.inventory.hash` (staleness detection).
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 **License:** MIT
 **Author:** z0rd0n88
 

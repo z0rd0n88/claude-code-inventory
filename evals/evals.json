@@ -49,6 +49,13 @@
       "expected_output": "A ~/.claude/.CLAUDE.cross-project.md file with a Summary table showing counts (hooks, MCP servers, skills, agents, memory files, CLAUDE.md status) per project, plus an Inconsistencies table flagging projects missing CLAUDE.md or hooks. Worktree slugs filtered out. JSON sidecar at ~/.claude/.CLAUDE.cross-project.json.",
       "files": [],
       "assertions": []
+    },
+    {
+      "id": 7,
+      "prompt": "Generate an inventory showing my deferred MCP tools, any background monitoring in my skills, and my sandbox security settings.",
+      "expected_output": "A .CLAUDE.inventory.md where MCP Servers table has a Loading column (eager/deferred), followed by a Deferred Tools sub-table listing lazy-loaded tools. Background Monitoring sub-section lists any skills/hooks using Monitor tool or run_in_background. Security section under Global Scope shows sandbox mode, dangerouslySkipPermissions, and permission count. JSON sidecar includes deferredTools, monitoring, and security keys with schemaVersion: 4.",
+      "files": [],
+      "assertions": []
     }
   ]
 }
