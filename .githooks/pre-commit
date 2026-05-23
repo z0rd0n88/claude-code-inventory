@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# ARCH.md freshness hook — regenerate the file-tree map and re-stage it so the
+# committed ARCH.md always matches the tree being committed. Installed by
+# install-arch-map.sh into a repo's .githooks/ (shared) or .git/hooks/ (local).
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+GEN="$ROOT/.githooks/gen_arch.py"
+[ -f "$GEN" ] || exit 0   # tooling absent → don't block the commit
+
+if ! python3 "$GEN" --root "$ROOT" --quiet; then
+  echo "ARCH.md: gen_arch.py failed; committing without map refresh" >&2
+  exit 0
+fi
+
+# Re-stage only when ARCH.md is actually tracked-eligible (not gitignored).
+if ! git check-ignore -q ARCH.md; then
+  git add "$ROOT/ARCH.md"
+fi
