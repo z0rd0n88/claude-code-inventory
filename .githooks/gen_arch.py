@@ -161,7 +161,14 @@ def default_scaffold(repo: str, top_level: list[Node]) -> str:
 
 
 def build_document(root: Path, existing: str | None) -> str:
-    repo = root.name
+    # Derive the repo name from the main worktree, not root.name: in a linked
+    # worktree root.name is the worktree folder (e.g. "feat-foo"), which makes
+    # every branch produce a different ARCH.md root label and causes merge conflicts.
+    try:
+        common = sh(["git", "rev-parse", "--git-common-dir"], root).strip()
+        repo = (root / common).resolve().parent.name
+    except subprocess.CalledProcessError:
+        repo = root.name
     paths = list_paths(root)
     tree = build_tree(paths)
     descs = parse_descs(existing or "")
