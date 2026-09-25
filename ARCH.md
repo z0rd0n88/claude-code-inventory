@@ -38,6 +38,10 @@ claude-code-inventory/
 │   ├── inventory-global.md
 │   └── inventory.md
 ├── docs/  — internal planning documents and design specs for v1.2–v2.1 feature increments plus a `FUTURE.md` roadmap; gitignored and not part of the public distribution.
+│   ├── agents/
+│   │   ├── domain.md
+│   │   ├── issue-tracker.md
+│   │   └── triage-labels.md
 │   ├── superpowers/
 │   │   ├── plans/
 │   │   │   ├── 2026-04-11-inventory-v12-deep-scan.md
@@ -64,5 +68,5 @@ claude-code-inventory/
 └── README.md  — full public documentation: problem statement, feature matrix, how-it-works explanation, installation, design rationale, and configuration source reference.
 ```
 
-_Generated 2026-05-23 02:04 UTC · 22 files · 12 directories._
+_Generated 2026-07-14 18:31 UTC · 25 files · 13 directories._
 <!-- ARCH:TREE:END -->
