@@ -19,7 +19,7 @@ Claude Code's automation ecosystem grows fast. You install plugins, create custo
 
 There's no single place to see it all. This plugin creates that single place.
 
-## Current State (v2.1)
+## Current State (v2.2)
 
 **Three commands:**
 
@@ -40,14 +40,14 @@ There's no single place to see it all. This plugin creates that single place.
 - Lightweight recommendations based on detected tech stack
 - Self-documenting — the inventory includes this plugin in its own output
 - Cross-platform — polyglot hook scripts work on Windows (Git Bash) and Unix
-- MCP Auth State, Keybindings, CLAUDE.md Quality scoring (8 criteria)
+- MCP Auth State, Keybindings, instruction file quality scoring (8 criteria)
 
 **v1.2 "Deep Scan" features:**
 
 - **Memory Files** — indexes per-project memory files with orphan/broken-link detection
 - **Scheduled Tasks** — lists persistent scheduled tasks with schedule and enabled state
 - **Plugin Health** — orphaned versions with disk usage, enabled-but-not-installed detection, update recency
-- **CLAUDE.md Hierarchy** — maps the full chain: global → project root → subdirectories
+- **Instruction File Hierarchy** — maps the full chain: global → ancestors → project root → subdirectories
 - **Hook Execution Order** — sequence numbers showing actual load order across scopes
 - **JSON Schema Versioning** — `schemaVersion` field for downstream tool compatibility
 
@@ -63,6 +63,13 @@ There's no single place to see it all. This plugin creates that single place.
 - **Deferred Tools Inventory** — shows which MCP tools use lazy loading via Tool Search
 - **Monitor Tool Tracking** — detects Monitor tool and `run_in_background` usage in skills/hooks
 - **Sandbox Configuration** — reports security posture (sandbox mode, `dangerouslySkipPermissions`, permission count)
+
+**v2.2 "AGENTS.md" features:**
+
+- **AGENTS.md Discovery** — finds `AGENTS.md` next to `CLAUDE.md` at the project root, in `.claude/`, in ancestor directories, and up to 3 levels into subdirectories
+- **Active / Inactive Status** — applies Claude Code's loader rule and the `instructionFiles` setting, so a repo with both files shows `AGENTS.md` as ignored
+- **Score the Active File** — the quality score runs on whichever root file Claude Code actually loads
+- **Cross-Project Instruction Column** — `/inventory-compare` reports `CLAUDE.md` / `AGENTS.md` / both / none and flags ignored `AGENTS.md` files
 
 **Known limitations:**
 
@@ -266,7 +273,7 @@ The skill is ~800 lines of structured instructions with explicit file paths, cla
 {
   "name": "inventory",
   "description": "Auto-generates .CLAUDE.inventory.md — a comprehensive inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) ordered by scope and tagged as installed or custom.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "category": "documentation",
   "source": {
     "source": "local"
@@ -390,13 +397,15 @@ A tool that inventories automations but doesn't list itself is a blind spot. The
 | `~/.claude/keybindings.json` | Custom keyboard shortcuts |
 | `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-authentication |
 | `~/.claude/CLAUDE.md` | Global user instructions (line count) |
+| `~/.claude/settings.json` → `pluginConfigs` | `instructionFiles` mode (which of CLAUDE.md / AGENTS.md Claude Code loads) |
 | `~/.claude/scheduled-tasks/*/` | Persistent scheduled task definitions |
 | `~/.claude/projects/<slug>/memory/` | Per-project memory files with YAML frontmatter |
 | `.claude/settings.json` | Project hooks, MCP servers (with deferred tool config) |
 | `.claude/skills/*/SKILL.md` | Project skill names and descriptions |
 | `.claude/agents/*.md` | Project agent names and descriptions |
 | `.claude/settings.local.json` | Permission count (entries not listed) |
-| `CLAUDE.md`, `**/CLAUDE.md` | Project instructions hierarchy (root + subdirectories) |
+| `CLAUDE.md`, `AGENTS.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md` | Project instructions at the root and in ancestor directories, each marked active or inactive for Claude Code |
+| `**/CLAUDE.md`, `**/AGENTS.md` | Subdirectory instruction files (loaded on demand) |
 | Plugin install directories | Bundled skills, agents, commands, hooks |
 
 ## License

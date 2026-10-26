@@ -4,7 +4,7 @@
     {
       "id": 0,
       "prompt": "List all my automations — hooks, skills, plugins, agents, MCP servers. Show me everything I have installed across global and project scope.",
-      "expected_output": "A .CLAUDE.inventory.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings), Project Scope (hooks, MCP servers, skills, agents), MCP Auth State section (if ~/.claude/mcp-needs-auth-cache.json exists), Keybindings section (if ~/.claude/keybindings.json exists), and CLAUDE.md Quality section (if CLAUDE.md exists in project root, with 8-criteria scoring table), plus .CLAUDE.inventory.json (with mcpAuthState, keybindings, and claudeMdQuality keys) and .CLAUDE.inventory.hash files. All items tagged as installed or custom.",
+      "expected_output": "A .CLAUDE.inventory.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings), Project Scope (hooks, MCP servers, skills, agents), MCP Auth State section (if ~/.claude/mcp-needs-auth-cache.json exists), Keybindings section (if ~/.claude/keybindings.json exists), and Instruction Files section (if CLAUDE.md or AGENTS.md exists in the project root, with the 8-criteria scoring table for the active root file), plus .CLAUDE.inventory.json (with mcpAuthState, keybindings, and claudeMdQuality keys) and .CLAUDE.inventory.hash files. All items tagged as installed or custom.",
       "files": [],
       "assertions": []
     },
@@ -31,8 +31,8 @@
     },
     {
       "id": 4,
-      "prompt": "Generate an inventory and show me the execution order of all my hooks and the full CLAUDE.md hierarchy.",
-      "expected_output": "A .CLAUDE.inventory.md where the Global Hooks table has a # column showing sequence numbers (global settings hooks first, then plugin-bundled hooks, then project hooks). CLAUDE.md Quality section includes a Hierarchy sub-table listing all CLAUDE.md files from ~/.claude/CLAUDE.md through subdirectories with line counts and scope labels, followed by the quality score for the project root CLAUDE.md.",
+      "prompt": "Generate an inventory and show me the execution order of all my hooks and the full CLAUDE.md / AGENTS.md hierarchy.",
+      "expected_output": "A .CLAUDE.inventory.md where the Global Hooks table has a # column showing sequence numbers (global settings hooks first, then plugin-bundled hooks, then project hooks). Instruction Files section includes a Hierarchy sub-table listing all CLAUDE.md and AGENTS.md files from ~/.claude/CLAUDE.md through ancestors and subdirectories with file name, line counts, scope labels, and active / on demand / inactive status, followed by the quality score for the active root file.",
       "files": [],
       "assertions": []
     },
@@ -46,7 +46,7 @@
     {
       "id": 6,
       "prompt": "Compare the automations across all my projects. Show me what each project has and flag any inconsistencies.",
-      "expected_output": "A ~/.claude/.CLAUDE.cross-project.md file with a Summary table showing counts (hooks, MCP servers, skills, agents, memory files, CLAUDE.md status) per project, plus an Inconsistencies table flagging projects missing CLAUDE.md or hooks. Worktree slugs filtered out. JSON sidecar at ~/.claude/.CLAUDE.cross-project.json.",
+      "expected_output": "A ~/.claude/.CLAUDE.cross-project.md file with a Summary table showing counts (hooks, MCP servers, skills, agents, memory files, instruction file: CLAUDE.md / AGENTS.md / both / none) per project, plus an Inconsistencies table flagging projects with no instruction file (neither CLAUDE.md nor AGENTS.md), projects where AGENTS.md is ignored because CLAUDE.md is also present, and projects with no hooks. Worktree slugs filtered out. JSON sidecar at ~/.claude/.CLAUDE.cross-project.json.",
       "files": [],
       "assertions": []
     },
@@ -54,6 +54,20 @@
       "id": 7,
       "prompt": "Generate an inventory showing my deferred MCP tools, any background monitoring in my skills, and my sandbox security settings.",
       "expected_output": "A .CLAUDE.inventory.md where MCP Servers table has a Loading column (eager/deferred), followed by a Deferred Tools sub-table listing lazy-loaded tools. Background Monitoring sub-section lists any skills/hooks using Monitor tool or run_in_background. Security section under Global Scope shows sandbox mode, dangerouslySkipPermissions, and permission count. JSON sidecar includes deferredTools, monitoring, and security keys with schemaVersion: 4.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 8,
+      "prompt": "Generate an inventory for this project. It has an AGENTS.md at the root and in services/api/, but no CLAUDE.md anywhere in the project or its parent directories.",
+      "expected_output": "A .CLAUDE.inventory.md with an Instruction Files section showing Mode: claude-md-or-agents-md (default). The Hierarchy table lists ./AGENTS.md as active (project root) and ./services/api/AGENTS.md as on demand (subdirectory), plus ~/.claude/CLAUDE.md as active if it exists. The Quality Score sub-section scores ./AGENTS.md. No 'AGENTS.md ignored' warning. The project is not reported as having no project instructions. JSON sidecar has schemaVersion: 5, instructionFiles.activeRootFile = ./AGENTS.md, instructionFiles.agentsMdIgnored = false, and claudeMdQuality.file = ./AGENTS.md.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 9,
+      "prompt": "Generate an inventory for a project that has both CLAUDE.md and AGENTS.md at its root, where CLAUDE.md does not import @AGENTS.md and is not a symlink to it. Then run /inventory-compare.",
+      "expected_output": "A .CLAUDE.inventory.md whose Instruction Files Hierarchy table lists ./CLAUDE.md as active and ./AGENTS.md as inactive with Note 'CLAUDE.md present'. The Quality Score scores ./CLAUDE.md. Validation contains '[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)'. JSON sidecar has instructionFiles.agentsMdIgnored = true and an inactive AGENTS.md entry in claudeMdHierarchy. In ~/.claude/.CLAUDE.cross-project.md the Instruction file row shows 'both (score/8)' for this project, and the Inconsistencies table has an 'AGENTS.md ignored' row naming it. The cross-project JSON (schemaVersion: 2) has instructionFile: 'both' and activeInstructionFile: 'CLAUDE.md'.",
       "files": [],
       "assertions": []
     }

@@ -37,7 +37,7 @@ The mode determines which Phase 1 discovery sources are read, which Phase 6 outp
 **In Global mode, skip these entirely:**
 - Phase 1: Project scope, Local scope, Memory files (project-specific)
 - Phase 5: Recommendations (requires project tech stack detection)
-- Phase 6a: Project Scope section, Local Scope section, Memory Files section, CLAUDE.md Quality Score sub-section (hierarchy table still shows global CLAUDE.md if it exists), Settings Conflicts section, Security section "Permission entries" row (local-scope data unavailable)
+- Phase 6a: Project Scope section, Local Scope section, Memory Files section, Instruction Files Quality Score sub-section (hierarchy table still shows global `~/.claude/CLAUDE.md` if it exists), Settings Conflicts section, Security section "Permission entries" row (local-scope data unavailable)
 - Phase 6a header: Use `> Regenerate: `/inventory-global`` instead of `> Regenerate: `/inventory``
 - Phase 6a output path: Write to `~/.claude/.CLAUDE.inventory.md` instead of project root
 - Phase 6b output path: Write to `~/.claude/.CLAUDE.inventory.json` instead of project root
@@ -60,7 +60,8 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-auth: keys = server display names, values = `{ "timestamp": <unix_ms> }`. If file missing, skip gracefully. |
 | `~/.claude/keybindings.json` | Custom keyboard shortcuts. File format TBD — if file exists, read as JSON and display key-action pairs. If file missing, skip gracefully. |
-| `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. |
+| `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. It always loads alongside project instructions (except in `managed-only` mode) and does **not** count toward the AGENTS.md check below. There is no documented global `~/.claude/AGENTS.md`. |
+| `~/.claude/settings.json` (instruction files mode) | `pluginConfigs["cc-plugin-agents-md@builtin"].options.instructionFiles`, or the pre-v2.1.285 ID `pluginConfigs["agents-md@builtin"].options.instructionFiles`. Valid values: `claude-md-or-agents-md` (the default when unset), `claude-md-and-agents-md`, `claude-md`, `managed-only`. If both IDs are set and differ, use `cc-plugin-agents-md@builtin` and record a warning. Claude Code reads this entry only from user settings (or `--settings` / managed settings, which this skill does not read). See [Instruction file activation](#instruction-file-activation). |
 | `~/.claude/scheduled-tasks/*/` | Persistent scheduled tasks. For each subdirectory, read the task definition file (likely `SKILL.md` or a JSON file) to extract: task ID (directory name), description, schedule (cron expression or one-time `fireAt`), and enabled state. If the directory does not exist, skip entirely. |
 | `~/.claude/settings.json` (security keys) | Check for `sandboxMode`, `dangerouslySkipPermissions`, and any sandbox-related configuration. Also detect the OS via `uname -s` to determine if PID namespace isolation is available (Linux only). |
 
@@ -73,8 +74,37 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `.claude/settings.json` | `hooks` (all events + matchers), `mcpServers` (all entries — for each server, check if it has `toolSearch` or deferred tool configuration to determine loading strategy) |
 | `.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `.claude/agents/*.md` | Each agent's `name` and `description` from YAML frontmatter |
-| `CLAUDE.md` (project root) | Project instructions file. Read contents for quality scoring: check for dev commands, architecture, gotchas, environment setup, conventions, deployment, key file paths, and line count. |
-| `**/CLAUDE.md` (max 3 levels deep) | Subdirectory instruction files. Use Glob with pattern `{*/CLAUDE.md,*/*/CLAUDE.md,*/*/*/CLAUDE.md}` to find them. For each, count lines. Exclude `node_modules/`, `.git/`, and other common vendored directories. |
+| `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` (project root) | Claude Code project instructions. Count lines for each that exists. Note whether `CLAUDE.md` is a symlink to `AGENTS.md` (Bash: `readlink CLAUDE.md`) or contains an `@AGENTS.md` import line. |
+| `AGENTS.md`, `.claude/AGENTS.md` (project root) | Cross-tool project instructions, which Claude Code v2.1.277+ reads in place of `CLAUDE.md`. Count lines for each that exists. |
+| Root instruction file contents | Read the **active root file** (see [Instruction file activation](#instruction-file-activation)) for quality scoring: check for dev commands, architecture, gotchas, environment setup, conventions, deployment, key file paths, and line count. |
+| Ancestor directories | Walk from the project root's parent up to the filesystem root. In each directory, check for `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, and `.claude/AGENTS.md`. Claude Code loads these at session start just like root files. In the home directory, skip `~/.claude/CLAUDE.md` here (it is the global file above). |
+| Subdirectory instruction files (max 3 levels deep) | Use Glob with pattern `{*/CLAUDE.md,*/*/CLAUDE.md,*/*/*/CLAUDE.md,*/AGENTS.md,*/*/AGENTS.md,*/*/*/AGENTS.md,*/CLAUDE.local.md,*/*/CLAUDE.local.md,*/*/*/CLAUDE.local.md}` to find them. For each, count lines. Exclude `node_modules/`, `.git/`, `.agents/`, `.claude/worktrees/`, and other common vendored directories. |
+
+**Not instruction files:** Claude Code never reads `AGENTS.local.md`, `AGENTS.override.md`, or anything under `.agents/`. Do not list them.
+
+### Instruction file activation
+
+Skip this step in global mode. After discovery, mark every instruction file `active`, `on demand`, or `inactive` for Claude Code. The rules follow the Claude Code memory docs (https://code.claude.com/docs/en/memory#agents-md):
+
+1. **Mode:** use the `instructionFiles` value from `~/.claude/settings.json` (see Global scope). If unset, the mode is `claude-md-or-agents-md`. If the value is not one of the four valid values, record a warning and treat it as the default. If `.claude/settings.json` or `.claude/settings.local.json` sets it, record a warning: Claude Code ignores that entry in project and local settings.
+2. **Counting files:** a `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` in the project root or any ancestor directory. `~/.claude/CLAUDE.md`, managed `CLAUDE.md`, and `.claude/rules/` files do **not** count.
+3. **Status per mode:**
+
+| Mode | Root + ancestor `CLAUDE.md` / `.claude/CLAUDE.md` / `CLAUDE.local.md` | Root + ancestor `AGENTS.md` / `.claude/AGENTS.md` | Subdirectory files |
+|------|-------------------------------------------------|--------------------------------------------------|--------------------|
+| `claude-md-or-agents-md` (default) | `active` | `active` if no counting file exists; otherwise `inactive` ("CLAUDE.md present") | `CLAUDE.md`: `on demand`. `AGENTS.md`: `on demand` only if no counting file exists **and** that subdirectory has no `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` of its own; otherwise `inactive` |
+| `claude-md-and-agents-md` | `active` | `active` | all `on demand` |
+| `claude-md` | `active` | `inactive` ("mode is claude-md") | `CLAUDE.md`: `on demand`. `AGENTS.md`: `inactive` |
+| `managed-only` | `inactive` ("mode is managed-only") | `inactive` | `CLAUDE.md`: `on demand`. `AGENTS.md`: `inactive` |
+
+`~/.claude/CLAUDE.md` is `active` in every mode except `managed-only`.
+
+4. **Imported or symlinked AGENTS.md:** if an active `CLAUDE.md` imports `@AGENTS.md` or is a symlink to it, mark that `AGENTS.md` `active` with the note "via CLAUDE.md" instead of `inactive`. Its content reaches Claude through the `CLAUDE.md`.
+5. **Active root file:** the file used for quality scoring. Use the project-root `CLAUDE.md` (else `.claude/CLAUDE.md`) if it is active. Otherwise use the project-root `AGENTS.md` (else `.claude/AGENTS.md`) if it is active. If neither is active, there is no active root file. When the chosen `CLAUDE.md` imports or symlinks to `AGENTS.md`, score the combined content.
+6. **Warnings** (add to Phase 3 Validation):
+   - Both a counting file and an `AGENTS.md` exist in default mode: `[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)`. Skip this warning when rule 4 applies.
+   - The only counting file is `CLAUDE.local.md` and an `AGENTS.md` exists: `[!] CLAUDE.local.md stops Claude Code from reading AGENTS.md — set instructionFiles to claude-md-and-agents-md to load both`.
+   - At least one root or ancestor instruction file exists, but none of them is active: `[!] No project instructions load for Claude Code (instructionFiles = <mode>)`.
 
 **Deferred tools enumeration:** At generation time, invoke `ToolSearch` with a broad query (e.g., `"*"` or `"list all"`) to enumerate currently deferred/lazy-loaded tools. For each tool returned, record its name, the MCP server it belongs to, and its description. If MCP servers are unavailable or ToolSearch returns an error, skip this step gracefully and note "Deferred tools: unable to query — MCP server unavailable" in the output.
 
@@ -192,6 +222,7 @@ Check that every referenced automation actually exists on disk. Collect warnings
 | MCP command available | Use Bash: `command -v <cmd>` for npx/node/etc. | `[!] MCP command not available: <cmd>` |
 | Memory file not in index | Parse `MEMORY.md` links; check each `.md` file in `memory/` is referenced | `[!] Memory file not in MEMORY.md index: <filename>` |
 | Index references missing file | For each link in `MEMORY.md`, check the target file exists in `memory/` | `[!] MEMORY.md references missing file: <filename>` |
+| Instruction file activation | Apply the warning rules in [Instruction file activation](#instruction-file-activation) | `[!] AGENTS.md ignored by Claude Code: ...` and the other messages listed there |
 
 Include all warnings in the Validation section of the output. If no warnings, omit the section.
 
@@ -470,28 +501,32 @@ If the file format contains additional fields (description, context, etc.), incl
 
 ---
 
-## CLAUDE.md Quality
+## Instruction Files
 
-(Include only if at least one CLAUDE.md exists — global, project root, or subdirectory. Otherwise omit this entire section.)
+(Include only if at least one instruction file exists: global `~/.claude/CLAUDE.md`, or any `CLAUDE.md`, `CLAUDE.local.md`, or `AGENTS.md` at the project root, an ancestor, or a subdirectory. Otherwise omit this entire section.)
+
+Mode: `{instructionFiles mode}` ({default / set in ~/.claude/settings.json})
 
 ### Hierarchy
 
-List all discovered CLAUDE.md files in scope order:
+List all discovered instruction files in load order (global, ancestors from the filesystem root down, project root, subdirectories). Within a directory, list `CLAUDE.md`, `.claude/CLAUDE.md`, and `CLAUDE.local.md` before `AGENTS.md`:
 
-| Path | Lines | Scope |
-|------|-------|-------|
-| ~/.claude/CLAUDE.md | {line count} | global |
-| ./CLAUDE.md | {line count} | project root |
-| ./{subdir}/CLAUDE.md | {line count} | subdirectory |
+| Path | File | Lines | Scope | Status | Note |
+|------|------|-------|-------|--------|------|
+| ~/.claude/CLAUDE.md | CLAUDE.md | {line count} | global | active | |
+| {ancestor}/CLAUDE.md | CLAUDE.md | {line count} | ancestor | active | |
+| ./CLAUDE.md | CLAUDE.md | {line count} | project root | active | |
+| ./AGENTS.md | AGENTS.md | {line count} | project root | inactive | CLAUDE.md present |
+| ./{subdir}/AGENTS.md | AGENTS.md | {line count} | subdirectory | on demand | |
 
-If `~/.claude/CLAUDE.md` does not exist, omit it from the table.
-If no subdirectory CLAUDE.md files are found, only show the rows that exist.
+Status is computed by [Instruction file activation](#instruction-file-activation). Use the Note column for the reason a file is `inactive` and for "via CLAUDE.md" (imported or symlinked).
+Only show rows for files that exist.
 
-### Quality Score (project root)
+### Quality Score (active root file)
 
-(Include this sub-section only if `CLAUDE.md` exists in the project root.)
+(Include this sub-section only if there is an active root file. Name it in the heading line, e.g. "Scoring `./AGENTS.md`".)
 
-Score the project's CLAUDE.md against these criteria by scanning for section headings containing relevant keywords (case-insensitive):
+Score the active root file (`CLAUDE.md` or `AGENTS.md`) against these criteria by scanning for section headings containing relevant keywords (case-insensitive):
 
 - **Dev commands**: headings with "commands", "scripts", "dev commands", "build", "run"
 - **Architecture**: headings with "architecture", "structure", "overview", "design"
@@ -515,7 +550,7 @@ Score the project's CLAUDE.md against these criteria by scanning for section hea
 
 Score: {N}/8 criteria met
 
-If `claude-md-management` plugin is installed (check `enabledPlugins`), append: "Run `/claude-md-management:claude-md-improver` for detailed CLAUDE.md analysis and improvements."
+If `claude-md-management` plugin is installed (check `enabledPlugins`), append: "Run `/claude-md-management:claude-md-improver` for detailed CLAUDE.md analysis and improvements." (If the active root file is `AGENTS.md`, say "instruction file" instead of "CLAUDE.md".)
 
 ---
 
@@ -554,7 +589,7 @@ If `claude-md-management` plugin is installed (check `enabledPlugins`), append: 
 | Property | Value |
 |----------|-------|
 | Generated by | `inventory@local` plugin (custom) |
-| Schema version | 4 |
+| Schema version | 5 |
 | Kept fresh by | SessionStart hook (regenerates on config change or >24h stale) |
 | Gitignored | Yes — `.CLAUDE.inventory.md`, `.CLAUDE.inventory.json`, `.CLAUDE.inventory.hash` |
 | JSON sidecar | `.CLAUDE.inventory.json` (machine-readable) |
@@ -567,7 +602,7 @@ Write a machine-readable JSON sidecar to the project root with this structure:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "generated": "ISO-8601 timestamp",
   "generator": "inventory@local",
   "scopes": {
@@ -648,8 +683,15 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     }
   ],
   "keybindings": [],
+  "instructionFiles": {
+    "mode": "claude-md-or-agents-md",
+    "modeSource": "default",
+    "activeRootFile": "./AGENTS.md",
+    "agentsMdIgnored": false
+  },
   "claudeMdQuality": {
     "exists": true,
+    "file": "./AGENTS.md",
     "lineCount": 85,
     "score": 8,
     "maxScore": 8,
@@ -665,9 +707,9 @@ Write a machine-readable JSON sidecar to the project root with this structure:
     }
   },
   "claudeMdHierarchy": [
-    { "path": "~/.claude/CLAUDE.md", "lines": 12, "scope": "global" },
-    { "path": "./CLAUDE.md", "lines": 85, "scope": "project_root" },
-    { "path": "./packages/api/CLAUDE.md", "lines": 24, "scope": "subdirectory" }
+    { "path": "~/.claude/CLAUDE.md", "file": "CLAUDE.md", "lines": 12, "scope": "global", "status": "active", "note": null },
+    { "path": "./AGENTS.md", "file": "AGENTS.md", "lines": 85, "scope": "project_root", "status": "active", "note": null },
+    { "path": "./packages/api/AGENTS.md", "file": "AGENTS.md", "lines": 24, "scope": "subdirectory", "status": "on_demand", "note": null }
   ],
   "settingsConflicts": [
     {
@@ -701,6 +743,8 @@ Write a machine-readable JSON sidecar to the project root with this structure:
   ]
 }
 ```
+
+**Schema version 5** adds the `instructionFiles` object, adds `file` to `claudeMdQuality`, and adds `file`, `status` (`active` / `on_demand` / `inactive`), and `note` to each `claudeMdHierarchy` entry. Hierarchy entries now include `AGENTS.md` and `CLAUDE.local.md` files and the `ancestor` scope. The `claudeMdQuality` and `claudeMdHierarchy` key names are kept for compatibility, though they now cover `AGENTS.md` too. `instructionFiles.modeSource` is `default` or `user_settings`. `activeRootFile` is `null` when no root file is active. `agentsMdIgnored` is `true` when an `AGENTS.md` exists but Claude Code skips it because a `CLAUDE.md` is present.
 
 ### 6c. Write `.CLAUDE.inventory.hash`
 
@@ -779,8 +823,14 @@ If not found, append:
 - **No previous `.CLAUDE.inventory.json` (first run):** Skip change detection, omit Recent Changes.
 - **No `pyproject.toml` or `package.json`:** Omit Recommendations or provide generic suggestions.
 - **Skill frontmatter missing `description`:** Use the skill directory name as fallback.
-- **No CLAUDE.md files at all:** Omit the entire CLAUDE.md Quality section (global, project root, and subdirectories all missing).
+- **No instruction files at all:** Omit the entire Instruction Files section (no `CLAUDE.md`, `CLAUDE.local.md`, or `AGENTS.md` anywhere, and no global `~/.claude/CLAUDE.md`).
 - **Only global CLAUDE.md exists:** Show hierarchy table with just the global row. Omit Quality Score sub-section.
+- **Only AGENTS.md at the project root (default mode):** `AGENTS.md` is `active` and is the active root file. Score it.
+- **Both CLAUDE.md and AGENTS.md at the project root (default mode):** `CLAUDE.md` is `active` and scored. `AGENTS.md` is `inactive` with a Validation warning, unless `CLAUDE.md` imports `@AGENTS.md` or is a symlink to it (then `AGENTS.md` is `active` "via CLAUDE.md" and no warning).
+- **CLAUDE.md only in an ancestor directory:** It counts. Project `AGENTS.md` files are `inactive` in default mode.
+- **Only AGENTS.md exists and mode is `claude-md` or `managed-only`:** List it as `inactive`. Omit the Quality Score sub-section and record the "No project instructions load" warning.
+- **`instructionFiles` set only in project or local settings:** Ignore it for activation (Claude Code does) and record a warning.
+- **`~/.claude/AGENTS.md` exists:** Not a documented global file, so do not list it as global. If the home directory is an ancestor of the project, the docs' ancestor rule (`.claude/AGENTS.md` in directories above the working directory) covers it: list it as an `ancestor` row with the usual status and Note "uncertain: home-directory .claude/AGENTS.md".
 - **No memory directory for this project:** Omit the Memory Files section entirely.
 - **Memory directory exists but is empty:** Omit the Memory Files section.
 - **MEMORY.md index missing but memory files exist:** List the files, report all as orphaned in Validation.
