@@ -18,8 +18,9 @@ from the per-project or global inventory.
    - Glob `<path>/.claude/skills/*/SKILL.md` → count skills
    - Glob `<path>/.claude/agents/*.md` → count agents
    - Check which instruction files exist at the project root: `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/AGENTS.md`
+   - Walk the project's parent folders up to the filesystem root and note any `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md`, the same way `/inventory` does. A parent file counts toward the AGENTS.md check, but not toward the classification below. Skip `~/.claude/CLAUDE.md`: it is the global file and does not count
    - Classify the project's instruction file as `CLAUDE.md` (only CLAUDE.md-family files), `AGENTS.md` (only AGENTS.md-family files), `both`, or `none` (neither exists)
-   - Pick the active root file with the activation rules in the inventory skill (`skills/inventory/SKILL.md`, "Instruction file activation"). The mode comes from `~/.claude/settings.json` and applies to every project. In the default `claude-md-or-agents-md` mode, a CLAUDE.md-family file wins and `AGENTS.md` is ignored. Run the 8-criteria quality score on the active root file
+   - Pick the active root file with the activation rules in the inventory skill (`skills/inventory/SKILL.md`, "Instruction file activation"). The mode comes from `~/.claude/settings.json` and applies to every project. In the default `claude-md-or-agents-md` mode, a CLAUDE.md-family file at the root or in a parent folder wins and `AGENTS.md` is ignored. Run the 8-criteria quality score on the active root file
    - Count memory files from `~/.claude/projects/<slug>/memory/` (exclude MEMORY.md)
 6. Generate a comparison table and inconsistency report
 
@@ -54,10 +55,10 @@ Use the project directory name (last path segment) as the column header, not the
 | Issue | Projects Affected | Details |
 |-------|-------------------|---------|
 | No instruction file | {project names} | Neither CLAUDE.md nor AGENTS.md exists |
-| AGENTS.md ignored | {project names} | Both present, AGENTS.md ignored by Claude Code (CLAUDE.md wins in `claude-md-or-agents-md` mode) |
+| AGENTS.md ignored | {project names} | Both present (CLAUDE.md at root or in a parent folder), AGENTS.md ignored by Claude Code (CLAUDE.md wins in `claude-md-or-agents-md` mode) |
 | No hooks | {project names} | No automation hooks configured |
 
-Report "No instruction file" only when neither file exists. Flag "AGENTS.md ignored" only when both exist, the mode is `claude-md-or-agents-md` or `claude-md`, and the root `CLAUDE.md` neither imports `@AGENTS.md` nor is a symlink to it.
+Report "No instruction file" only when neither file exists. Flag "AGENTS.md ignored" when the project has an `AGENTS.md` and a CLAUDE.md-family file exists at its root or in a parent folder, the mode is `claude-md-or-agents-md` or `claude-md`, and no root `CLAUDE.md` imports `@AGENTS.md` or is a symlink to it.
 
 If no inconsistencies detected, show "No inconsistencies detected across {N} projects."
 
@@ -100,4 +101,5 @@ The earlier shape had no `schemaVersion` and counts as version 1. Schema version
 - Path with hyphens in directory name: the slug reversal is ambiguous. Verify resolved path exists on disk. If not, skip the project with a warning.
 - No `~/.claude/projects/` directory: show "No projects found."
 - All slugs are worktrees: show "No non-worktree projects found."
+- Root has only `AGENTS.md` but a parent folder has a `CLAUDE.md` (default mode): the instruction file is `AGENTS.md`, `activeInstructionFile` is `null`, and there is no score. Show `AGENTS.md (ignored)` in the Summary and flag "AGENTS.md ignored".
 - Project path exists but has no `.claude/` directory: show zeros for all counts. Still check the root for `CLAUDE.md` and `AGENTS.md`; the instruction file is `none` only if neither exists.
