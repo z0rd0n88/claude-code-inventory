@@ -18,7 +18,7 @@ claude-code-inventory is a Claude Code plugin (v2.1.0, MIT) that auto-generates 
 - `hooks/` — the SessionStart hook implementation: `hooks.json` registers the hook, `inventory.sh` holds the three-tier staleness detection, and `inventory.cmd` is a polyglot Windows/Unix wrapper.
 - `skills/` — the core generation logic as a single Claude skill (`skills/inventory/SKILL.md`), an ~800-line structured prompt defining the 7-phase process and output templates.
 - `.gitignore` — excludes generated inventory output (`.CLAUDE.inventory.*`), the `.claude/` workspace, internal docs, and the eval workspace from version control.
-- `CLAUDE.md` — project-scoped instructions for Claude Code in this repo, documenting architecture, tech stack, naming conventions, and key file roles.
+- `AGENTS.md` — project-scoped instructions for Claude Code in this repo, documenting architecture, tech stack, naming conventions, and key file roles.
 - `LICENSE` — MIT license for the plugin.
 - `README.md` — full public documentation: problem statement, feature matrix, how-it-works explanation, installation, design rationale, and configuration source reference.
 <!-- ARCH:DESC:END -->
@@ -62,11 +62,11 @@ claude-code-inventory/
 │   └── inventory/
 │       └── SKILL.md
 ├── .gitignore  — excludes generated inventory output (`.CLAUDE.inventory.*`), the `.claude/` workspace, internal docs, and the eval workspace from version control.
+├── AGENTS.md  — project-scoped instructions for Claude Code in this repo, documenting architecture, tech stack, naming conventions, and key file roles.
 ├── ARCH.md
-├── CLAUDE.md  — project-scoped instructions for Claude Code in this repo, documenting architecture, tech stack, naming conventions, and key file roles.
 ├── LICENSE  — MIT license for the plugin.
 └── README.md  — full public documentation: problem statement, feature matrix, how-it-works explanation, installation, design rationale, and configuration source reference.
 ```
 
-_Generated 2026-07-14 18:31 UTC · 25 files · 13 directories._
+_Generated 2026-10-26 16:57 UTC · 25 files · 13 directories._
 <!-- ARCH:TREE:END -->

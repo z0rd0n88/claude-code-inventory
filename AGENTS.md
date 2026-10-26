@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## Project Overview
 
@@ -37,7 +37,7 @@
 │   └── inventory/
 │       └── SKILL.md             # Core 7-phase generation logic (~800 lines)
 ├── README.md                    # Full documentation
-└── CLAUDE.md                    # This file
+└── AGENTS.md                    # This file
 ```
 
 ## Tech Stack
