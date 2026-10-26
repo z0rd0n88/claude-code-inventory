@@ -305,7 +305,7 @@ The plugin bundles its own hook via `hooks/hooks.json` — the plugin system loa
 ## Plugin Structure
 
 ```
-inventory/2.1.0/
+inventory/2.2.0/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin metadata (name, version, category)
 ├── commands/
@@ -405,7 +405,7 @@ A tool that inventories automations but doesn't list itself is a blind spot. The
 | `.claude/agents/*.md` | Project agent names and descriptions |
 | `.claude/settings.local.json` | Permission count (entries not listed) |
 | `CLAUDE.md`, `AGENTS.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md` | Project instructions at the root and in ancestor directories, each marked active or inactive for Claude Code |
-| `**/CLAUDE.md`, `**/AGENTS.md` | Subdirectory instruction files (loaded on demand) |
+| `**/CLAUDE.md`, `**/AGENTS.md`, `**/CLAUDE.local.md` | Subdirectory instruction files (on demand or inactive) |
 | Plugin install directories | Bundled skills, agents, commands, hooks |
 
 ## License

@@ -46,19 +46,21 @@ Use this template:
 | Skills | {count} | {count} | ... |
 | Agents | {count} | {count} | ... |
 | Memory files | {count} | {count} | ... |
-| Instruction file | {CLAUDE.md (score/8) / AGENTS.md (score/8) / both (score/8) / none} | ... | ... |
+| Instruction file | {CLAUDE.md (score/8) / AGENTS.md (score/8) / both (score/8) / AGENTS.md (ignored) / {kind} (inactive) / none} | ... | ... |
 
 Use the project directory name (last path segment) as the column header, not the full slug.
+
+Show `(score/8)` only when the project has an active root file. Use `AGENTS.md (ignored)` when the project has only `AGENTS.md` and it is inactive. Use `{kind} (inactive)`, e.g. `both (inactive)`, when files exist but none of them is active (e.g. `managed-only` mode).
 
 ## Inconsistencies
 
 | Issue | Projects Affected | Details |
 |-------|-------------------|---------|
 | No instruction file | {project names} | Neither CLAUDE.md nor AGENTS.md exists |
-| AGENTS.md ignored | {project names} | Both present (CLAUDE.md at root or in a parent folder), AGENTS.md ignored by Claude Code (CLAUDE.md wins in `claude-md-or-agents-md` mode) |
+| AGENTS.md ignored | {project names} | AGENTS.md exists but Claude Code does not load it ({reason}) |
 | No hooks | {project names} | No automation hooks configured |
 
-Report "No instruction file" only when neither file exists. Flag "AGENTS.md ignored" when the project has an `AGENTS.md` and a CLAUDE.md-family file exists at its root or in a parent folder, the mode is `claude-md-or-agents-md` or `claude-md`, and no root `CLAUDE.md` imports `@AGENTS.md` or is a symlink to it.
+Report "No instruction file" only when neither file exists. Flag "AGENTS.md ignored" when the project's root `AGENTS.md` is `inactive` under the skill's activation rules, with the reason in Details. Typical reasons: "CLAUDE.md present" (default mode, CLAUDE.md-family file at the root or in a parent folder), "mode is claude-md", "mode is managed-only", or "AGENTS.md plugin disabled". Don't flag it when a root `CLAUDE.md` imports `@AGENTS.md` or is a symlink to it.
 
 If no inconsistencies detected, show "No inconsistencies detected across {N} projects."
 
@@ -90,11 +92,11 @@ Write a JSON sidecar with this structure:
   ],
   "inconsistencies": [
     { "issue": "No instruction file", "projects": ["asciiSkill"], "details": "Neither CLAUDE.md nor AGENTS.md exists" },
-    { "issue": "AGENTS.md ignored", "projects": ["BratBot"], "details": "Both present, AGENTS.md ignored by Claude Code" }
+    { "issue": "AGENTS.md ignored", "projects": ["BratBot"], "details": "AGENTS.md exists but Claude Code does not load it (CLAUDE.md present)" }
   ]
 }
 
-The earlier shape had no `schemaVersion` and counts as version 1. Schema version 2 replaces `claudeMdScore` with `instructionFileScore` and adds `schemaVersion`, `instructionFilesMode`, `hasAgentsMd`, `instructionFile` (`CLAUDE.md` / `AGENTS.md` / `both` / `none`), and `activeInstructionFile` (`CLAUDE.md` / `AGENTS.md` / `null`). `hasClaudeMd` keeps its meaning: a CLAUDE.md-family file exists.
+The earlier shape had no `schemaVersion` and counts as version 1. Schema version 2 replaces `claudeMdScore` with `instructionFileScore` and adds `schemaVersion`, `instructionFilesMode`, `hasAgentsMd`, `instructionFile` (`CLAUDE.md` / `AGENTS.md` / `both` / `none`), and `activeInstructionFile` (`CLAUDE.md` / `AGENTS.md` / `null`). `hasClaudeMd` is widened: it was `<path>/CLAUDE.md` exists, and is now any of `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` at the project root (parent folders not included).
 
 ## Edge Cases
 

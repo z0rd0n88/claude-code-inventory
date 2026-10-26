@@ -25,7 +25,7 @@
     {
       "id": 3,
       "prompt": "Show me my memory files, scheduled tasks, and plugin health status.",
-      "expected_output": "A .CLAUDE.inventory.md file containing: Memory Files section with file/type/description table and summary counts, Scheduled Tasks section (or omitted if no tasks), Plugin Health section with orphaned versions and potential issues sub-tables. JSON sidecar includes memory, scheduledTasks, and pluginHealth keys with schemaVersion: 2.",
+      "expected_output": "A .CLAUDE.inventory.md file containing: Memory Files section with file/type/description table and summary counts, Scheduled Tasks section (or omitted if no tasks), Plugin Health section with orphaned versions and potential issues sub-tables. JSON sidecar includes memory, scheduledTasks, and pluginHealth keys with schemaVersion: 5.",
       "files": [],
       "assertions": []
     },
@@ -39,7 +39,7 @@
     {
       "id": 5,
       "prompt": "Generate a global-only inventory of my Claude Code setup. I want to see just my global plugins, skills, hooks, and settings — no project-specific stuff.",
-      "expected_output": "A ~/.claude/.CLAUDE.inventory.md file containing only Global Scope sections: hooks, skills, plugins, plugin-bundled content, blocked plugins, settings, plugin health. No Project Scope, Local Scope, Memory Files, or Recommendations sections. Header shows 'Regenerate: /inventory-global'. JSON sidecar at ~/.claude/.CLAUDE.inventory.json with schemaVersion: 3.",
+      "expected_output": "A ~/.claude/.CLAUDE.inventory.md file containing only Global Scope sections: hooks, skills, plugins, plugin-bundled content, blocked plugins, settings, plugin health. No Project Scope, Local Scope, Memory Files, or Recommendations sections. Header shows 'Regenerate: /inventory-global'. JSON sidecar at ~/.claude/.CLAUDE.inventory.json with schemaVersion: 5.",
       "files": [],
       "assertions": []
     },
@@ -53,7 +53,7 @@
     {
       "id": 7,
       "prompt": "Generate an inventory showing my deferred MCP tools, any background monitoring in my skills, and my sandbox security settings.",
-      "expected_output": "A .CLAUDE.inventory.md where MCP Servers table has a Loading column (eager/deferred), followed by a Deferred Tools sub-table listing lazy-loaded tools. Background Monitoring sub-section lists any skills/hooks using Monitor tool or run_in_background. Security section under Global Scope shows sandbox mode, dangerouslySkipPermissions, and permission count. JSON sidecar includes deferredTools, monitoring, and security keys with schemaVersion: 4.",
+      "expected_output": "A .CLAUDE.inventory.md where MCP Servers table has a Loading column (eager/deferred), followed by a Deferred Tools sub-table listing lazy-loaded tools. Background Monitoring sub-section lists any skills/hooks using Monitor tool or run_in_background. Security section under Global Scope shows sandbox mode, dangerouslySkipPermissions, and permission count. JSON sidecar includes deferredTools, monitoring, and security keys with schemaVersion: 5.",
       "files": [],
       "assertions": []
     },
@@ -67,7 +67,7 @@
     {
       "id": 9,
       "prompt": "Generate an inventory for a project that has both CLAUDE.md and AGENTS.md at its root, where CLAUDE.md does not import @AGENTS.md and is not a symlink to it. Then run /inventory-compare.",
-      "expected_output": "A .CLAUDE.inventory.md whose Instruction Files Hierarchy table lists ./CLAUDE.md as active and ./AGENTS.md as inactive with Note 'CLAUDE.md present'. The Quality Score scores ./CLAUDE.md. Validation contains '[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)'. JSON sidecar has instructionFiles.agentsMdIgnored = true and an inactive AGENTS.md entry in claudeMdHierarchy. In ~/.claude/.CLAUDE.cross-project.md the Instruction file row shows 'both (score/8)' for this project, and the Inconsistencies table has an 'AGENTS.md ignored' row naming it. The cross-project JSON (schemaVersion: 2) has instructionFile: 'both' and activeInstructionFile: 'CLAUDE.md'.",
+      "expected_output": "A .CLAUDE.inventory.md whose Instruction Files Hierarchy table lists ./CLAUDE.md as active and ./AGENTS.md as inactive with Note 'CLAUDE.md present'. The Quality Score scores ./CLAUDE.md. Validation contains '[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)'. JSON sidecar has instructionFiles.agentsMdIgnored = true and an inactive AGENTS.md entry in claudeMdHierarchy. In ~/.claude/.CLAUDE.cross-project.md the Instruction file row shows 'both (score/8)' for this project, and the Inconsistencies table has an 'AGENTS.md ignored' row naming it, with reason 'CLAUDE.md present'. The cross-project JSON (schemaVersion: 2) has instructionFile: 'both' and activeInstructionFile: 'CLAUDE.md'.",
       "files": [],
       "assertions": []
     }
