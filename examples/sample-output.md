@@ -115,6 +115,37 @@
 
 ---
 
+## Instruction Files
+
+Mode: `claude-md-or-agents-md` (default)
+
+### Hierarchy
+
+| Path | File | Lines | Scope | Status | Note |
+|------|------|-------|-------|--------|------|
+| ~/.claude/CLAUDE.md | CLAUDE.md | 18 | global | active | |
+| ./AGENTS.md | AGENTS.md | 124 | project root | active | |
+| ./services/api/AGENTS.md | AGENTS.md | 31 | subdirectory | on demand | |
+
+### Quality Score (active root file)
+
+Scoring `./AGENTS.md`
+
+| Criterion | Status |
+|-----------|--------|
+| Dev commands | present (6 commands) |
+| Architecture | present |
+| Gotchas | missing |
+| Environment setup | present |
+| Conventions | present |
+| Deployment | present |
+| Key file paths | present |
+| Length | 124 lines (good) |
+
+Score: 7/8 criteria met
+
+---
+
 ## Recommendations
 
 > Run `/claude-code-setup:claude-automation-recommender` for a comprehensive analysis

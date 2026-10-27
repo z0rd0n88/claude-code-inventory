@@ -4,7 +4,7 @@
 
 **claude-code-inventory** is a Claude Code plugin that auto-generates a unified inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) across global, project, and local scopes. It produces `.CLAUDE.inventory.md` (human-readable), `.CLAUDE.inventory.json` (machine-readable), and `.CLAUDE.inventory.hash` (staleness detection).
 
-**Version:** 2.1.0
+**Version:** 2.2.0
 **License:** MIT
 **Author:** z0rd0n88
 
@@ -26,7 +26,7 @@
 │       └── specs/
 │           └── 2026-04-11-inventory-v12-v21-design.md
 ├── evals/
-│   └── evals.json               # Evaluation test cases (8 scenarios)
+│   └── evals.json               # Evaluation test cases (10 scenarios)
 ├── examples/
 │   └── sample-output.md         # Real-world example of generated output
 ├── hooks/
@@ -69,8 +69,8 @@
 
 | Scope   | Sources |
 |---------|---------|
-| Global  | `~/.claude/settings.json`, `~/.claude/plugins/installed_plugins.json`, `~/.claude/plugins/blocklist.json`, `~/.claude/skills/*/SKILL.md`, `~/.claude/mcp-needs-auth-cache.json`, `~/.claude/keybindings.json`, `~/.claude/CLAUDE.md`, `~/.claude/scheduled-tasks/*/`, `~/.claude/plugins/cache/` (orphan markers) |
-| Project | `.claude/settings.json`, `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `CLAUDE.md`, `**/CLAUDE.md` (subdirectories) |
+| Global  | `~/.claude/settings.json`, `~/.claude/plugins/installed_plugins.json`, `~/.claude/plugins/blocklist.json`, `~/.claude/skills/*/SKILL.md`, `~/.claude/mcp-needs-auth-cache.json`, `~/.claude/keybindings.json`, `~/.claude/CLAUDE.md`, `~/.claude/settings.json` (`instructionFiles` mode under `pluginConfigs`), `~/.claude/scheduled-tasks/*/`, `~/.claude/plugins/cache/` (orphan markers) |
+| Project | `.claude/settings.json`, `.claude/skills/*/SKILL.md`, `.claude/agents/*.md`, `CLAUDE.md` / `AGENTS.md` / `CLAUDE.local.md` / `.claude/CLAUDE.md` / `.claude/AGENTS.md` (root and ancestor directories), `**/CLAUDE.md`, `**/AGENTS.md`, `**/CLAUDE.local.md` (subdirectories) |
 | Local   | `.claude/settings.local.json` (permission count only) |
 | Memory  | `~/.claude/projects/<slug>/memory/MEMORY.md`, `~/.claude/projects/<slug>/memory/*.md` |
 
@@ -101,15 +101,17 @@
 
 ### Testing
 
-Evaluations are defined in `evals/evals.json` with 8 test scenarios:
+Evaluations are defined in `evals/evals.json` with 10 test scenarios:
 1. Full inventory listing (both scopes)
 2. Skills/plugins only (handles missing `.claude/`)
 3. Regeneration after plugin install (detects Recent Changes)
 4. Memory files, scheduled tasks, and plugin health status
-5. Hook execution order and CLAUDE.md hierarchy
+5. Hook execution order and instruction file hierarchy
 6. Global-only inventory via `/inventory-global`
 7. Cross-project comparison via `/inventory-compare`
 8. Deferred tools, monitor tracking, and sandbox security
+9. AGENTS.md-only project (AGENTS.md active and scored)
+10. Project with both CLAUDE.md and AGENTS.md (AGENTS.md inactive, flagged)
 
 No formal test runner — evaluation framework is for future expansion.
 
