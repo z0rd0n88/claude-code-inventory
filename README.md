@@ -293,7 +293,7 @@ The plugin bundles its own hook via `hooks/hooks.json` — the plugin system loa
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/plugins/cache/local/inventory/1.0.0/hooks/inventory.cmd"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/inventory.cmd"
           }
         ]
       }
@@ -301,6 +301,8 @@ The plugin bundles its own hook via `hooks/hooks.json` — the plugin system loa
   }
 }
 ```
+
+Claude Code sets `${CLAUDE_PLUGIN_ROOT}` to the plugin's installed version directory, so the hook path doesn't need updating on a version bump.
 
 ## Plugin Structure
 
