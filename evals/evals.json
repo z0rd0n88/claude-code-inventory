@@ -4,7 +4,7 @@
     {
       "id": 0,
       "prompt": "List all my automations — hooks, skills, plugins, agents, MCP servers. Show me everything I have installed across global and project scope.",
-      "expected_output": "A .CLAUDE.inventory.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings), Project Scope (hooks, MCP servers, skills, agents), MCP Auth State section (if ~/.claude/mcp-needs-auth-cache.json exists), Keybindings section (if ~/.claude/keybindings.json exists), and Instruction Files section (if CLAUDE.md or AGENTS.md exists in the project root, with the 8-criteria scoring table for the active root file), plus .CLAUDE.inventory.json (with mcpAuthState, keybindings, and claudeMdQuality keys) and .CLAUDE.inventory.hash files. All items tagged as installed or custom.",
+      "expected_output": "A .CLAUDE.inventory.md file with Global Scope (hooks, skills, plugins, plugin-bundled content, blocked plugins, settings), Project Scope (hooks, MCP servers, skills, agents), MCP Auth State section (if ~/.claude/mcp-needs-auth-cache.json exists), Keybindings section (if ~/.claude/keybindings.json exists), and Instruction Files section (if CLAUDE.md or AGENTS.md exists in the project root, with the 8-criteria scoring table for the active root file), plus .CLAUDE.inventory.json (with mcpAuthState, keybindings, instructionFiles, and claudeMdQuality keys) and .CLAUDE.inventory.hash files. All items tagged as installed or custom.",
       "files": [],
       "assertions": []
     },
@@ -46,7 +46,7 @@
     {
       "id": 6,
       "prompt": "Compare the automations across all my projects. Show me what each project has and flag any inconsistencies.",
-      "expected_output": "A ~/.claude/.CLAUDE.cross-project.md file with a Summary table showing counts (hooks, MCP servers, skills, agents, memory files, instruction file: CLAUDE.md / AGENTS.md / both / none) per project, plus an Inconsistencies table flagging projects with no instruction file (neither CLAUDE.md nor AGENTS.md), projects where AGENTS.md is ignored because CLAUDE.md is also present, and projects with no hooks. Worktree slugs filtered out. JSON sidecar at ~/.claude/.CLAUDE.cross-project.json.",
+      "expected_output": "A ~/.claude/.CLAUDE.cross-project.md file with a Summary table showing counts (hooks, MCP servers, skills, agents, memory files, instruction file: CLAUDE.md / AGENTS.md / both / inherited / none) per project, plus an Inconsistencies table flagging projects with no instruction file (neither CLAUDE.md nor AGENTS.md), projects where AGENTS.md is ignored because CLAUDE.md is also present, and projects with no hooks. Worktree slugs filtered out. JSON sidecar at ~/.claude/.CLAUDE.cross-project.json.",
       "files": [],
       "assertions": []
     },
@@ -60,14 +60,14 @@
     {
       "id": 8,
       "prompt": "Generate an inventory for this project. It has an AGENTS.md at the root and in services/api/, but no CLAUDE.md anywhere in the project or its parent directories.",
-      "expected_output": "A .CLAUDE.inventory.md with an Instruction Files section showing Mode: claude-md-or-agents-md (default). The Hierarchy table lists ./AGENTS.md as active (project root) and ./services/api/AGENTS.md as on demand (subdirectory), plus ~/.claude/CLAUDE.md as active if it exists. The Quality Score sub-section scores ./AGENTS.md. No 'AGENTS.md ignored' warning. The project is not reported as having no project instructions. JSON sidecar has schemaVersion: 5, instructionFiles.activeRootFile = ./AGENTS.md, instructionFiles.agentsMdIgnored = false, and claudeMdQuality.file = ./AGENTS.md.",
+      "expected_output": "A .CLAUDE.inventory.md with an Instruction Files section showing Mode: claude-md-or-agents-md (default). The Hierarchy table lists ./AGENTS.md as active (project root) and ./services/api/AGENTS.md as on demand (subdirectory), plus ~/.claude/CLAUDE.md as active if it exists. The Quality Score sub-section scores ./AGENTS.md. No 'AGENTS.md ignored' warning. The project is not reported as having no project instructions. JSON sidecar has schemaVersion: 5, instructionFiles.activeRootFile = ./AGENTS.md, instructionFiles.agentsMdIgnored = false, a claudeMdHierarchy entry for ./services/api/AGENTS.md with status on_demand, and claudeMdQuality.path = ./AGENTS.md.",
       "files": [],
       "assertions": []
     },
     {
       "id": 9,
       "prompt": "Generate an inventory for a project that has both CLAUDE.md and AGENTS.md at its root, where CLAUDE.md does not import @AGENTS.md and is not a symlink to it. Then run /inventory-compare.",
-      "expected_output": "A .CLAUDE.inventory.md whose Instruction Files Hierarchy table lists ./CLAUDE.md as active and ./AGENTS.md as inactive with Note 'CLAUDE.md present'. The Quality Score scores ./CLAUDE.md. Validation contains '[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)'. JSON sidecar has instructionFiles.agentsMdIgnored = true and an inactive AGENTS.md entry in claudeMdHierarchy. In ~/.claude/.CLAUDE.cross-project.md the Instruction file row shows 'both (score/8)' for this project, and the Inconsistencies table has an 'AGENTS.md ignored' row naming it, with reason 'CLAUDE.md present'. The cross-project JSON (schemaVersion: 2) has instructionFile: 'both' and activeInstructionFile: 'CLAUDE.md'.",
+      "expected_output": "A .CLAUDE.inventory.md whose Instruction Files Hierarchy table lists ./CLAUDE.md as active and ./AGENTS.md as inactive with Note 'CLAUDE.md present'. The Quality Score scores ./CLAUDE.md. Validation contains '[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)'. JSON sidecar has instructionFiles.agentsMdIgnored = true and an inactive AGENTS.md entry in claudeMdHierarchy. In ~/.claude/.CLAUDE.cross-project.md the Instruction file row shows 'both (N/8)' for this project, where N is the CLAUDE.md score, and the Inconsistencies table has an 'AGENTS.md ignored' row naming it, with reason 'CLAUDE.md present'. The cross-project JSON (schemaVersion: 2) has instructionFile: 'both' and activeInstructionFile: 'CLAUDE.md', and instructionFileScore set to the CLAUDE.md score, with no claudeMdScore key.",
       "files": [],
       "assertions": []
     }

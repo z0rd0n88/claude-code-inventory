@@ -60,8 +60,8 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `~/.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-auth: keys = server display names, values = `{ "timestamp": <unix_ms> }`. If file missing, skip gracefully. |
 | `~/.claude/keybindings.json` | Custom keyboard shortcuts. File format TBD — if file exists, read as JSON and display key-action pairs. If file missing, skip gracefully. |
-| `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. It always loads alongside project instructions (except in `managed-only` mode) and does **not** count toward the AGENTS.md check below. There is no documented global `~/.claude/AGENTS.md`. |
-| `~/.claude/settings.json` (instruction files mode) | `pluginConfigs["cc-plugin-agents-md@builtin"].options.instructionFiles`, or the pre-v2.1.285 ID `pluginConfigs["agents-md@builtin"].options.instructionFiles`. Valid values: `claude-md-or-agents-md` (the default when unset), `claude-md-and-agents-md`, `claude-md`, `managed-only`. If both IDs are set and differ, record a warning naming both values: the docs don't say which one wins. Use the `cc-plugin-agents-md@builtin` value for activation and mark the Mode line "uncertain". Claude Code reads this entry only from user settings (or `--settings` / managed settings, which this skill does not read). See [Instruction file activation](#instruction-file-activation). |
+| `~/.claude/CLAUDE.md` | Global user instructions file. If it exists, count lines. List it only as the global row, never as a project-root or ancestor `.claude/CLAUDE.md` row, even when the project root is the home directory. It always loads alongside project instructions (except in `managed-only` mode) and does **not** count toward the AGENTS.md check below. There is no documented global `~/.claude/AGENTS.md`. |
+| `~/.claude/settings.json` (instruction files mode) | `pluginConfigs["cc-plugin-agents-md@builtin"].options.instructionFiles`, or the pre-v2.1.285 ID `pluginConfigs["agents-md@builtin"].options.instructionFiles`. Valid values: `claude-md-or-agents-md` (the default when unset), `claude-md-and-agents-md`, `claude-md`, `managed-only`. If both IDs are set and differ, record a warning naming both values: the docs don't say which one wins. Use the `cc-plugin-agents-md@builtin` value for activation and mark the Mode line "uncertain" (`modeSource` `conflict`). Claude Code reads this entry only from user settings (or `--settings` / managed settings, which this skill does not read). See [Instruction file activation](#instruction-file-activation). |
 | `~/.claude/scheduled-tasks/*/` | Persistent scheduled tasks. For each subdirectory, read the task definition file (likely `SKILL.md` or a JSON file) to extract: task ID (directory name), description, schedule (cron expression or one-time `fireAt`), and enabled state. If the directory does not exist, skip entirely. |
 | `~/.claude/settings.json` (security keys) | Check for `sandboxMode`, `dangerouslySkipPermissions`, and any sandbox-related configuration. Also detect the OS via `uname -s` to determine if PID namespace isolation is available (Linux only). |
 
@@ -74,7 +74,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 | `.claude/settings.json` | `hooks` (all events + matchers), `mcpServers` (all entries — for each server, check if it has `toolSearch` or deferred tool configuration to determine loading strategy) |
 | `.claude/skills/*/SKILL.md` | Each skill's `name` and `description` from YAML frontmatter |
 | `.claude/agents/*.md` | Each agent's `name` and `description` from YAML frontmatter |
-| `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` (project root) | Claude Code project instructions. Count lines for each that exists. Note whether `CLAUDE.md` is a symlink to `AGENTS.md` (Bash: `readlink CLAUDE.md`) or contains an `@AGENTS.md` import line. |
+| `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` (project root) | Claude Code project instructions. Count lines for each that exists. For each, note whether it is a symlink to an `AGENTS.md` (Bash: `readlink <file>`) or imports one (see rule 4 in [Instruction file activation](#instruction-file-activation)). Do the same for these files in ancestor directories. |
 | `AGENTS.md`, `.claude/AGENTS.md` (project root) | Cross-tool project instructions, which Claude Code v2.1.277+ reads in place of `CLAUDE.md`. Count lines for each that exists. |
 | Root instruction file contents | Read the **active root file** (see [Instruction file activation](#instruction-file-activation)) for quality scoring: check for dev commands, architecture, gotchas, environment setup, conventions, deployment, key file paths, and line count. |
 | Ancestor directories | Walk from the project root's parent up to the filesystem root. In each directory, check for `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, and `.claude/AGENTS.md`. Claude Code loads these at session start just like root files. In the home directory, skip `~/.claude/CLAUDE.md` here (it is the global file above). |
@@ -86,7 +86,7 @@ Read these files **in parallel** using the Read tool. If a file doesn't exist, s
 
 In global mode, only the global row exists: mark `~/.claude/CLAUDE.md` `inactive` ("mode is managed-only") when the mode is `managed-only`, otherwise `active`, and skip the rest of this step. After discovery, mark every instruction file `active`, `on demand`, or `inactive` for Claude Code. The rules follow the Claude Code memory docs (https://code.claude.com/docs/en/memory#agents-md):
 
-1. **Mode:** use the `instructionFiles` value from `~/.claude/settings.json` (see Global scope). If unset, the mode is `claude-md-or-agents-md`. If the value is not one of the four valid values, record a warning and treat it as the default. If `.claude/settings.json` or `.claude/settings.local.json` sets it, record a warning: Claude Code ignores that entry in project and local settings.
+1. **Mode:** use the `instructionFiles` value from `~/.claude/settings.json` (see Global scope). If unset, the mode is `claude-md-or-agents-md`. If the value is not one of the four valid values, record a warning, treat it as the default, and mark the Mode line "uncertain" (`modeSource` `invalid`). If `.claude/settings.json` or `.claude/settings.local.json` sets it, record a warning: Claude Code ignores that entry in project and local settings.
 2. **Counting files:** a `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` in the project root or any ancestor directory. `~/.claude/CLAUDE.md`, managed `CLAUDE.md`, and `.claude/rules/` files do **not** count.
 3. **Status per mode:**
 
@@ -99,14 +99,14 @@ In global mode, only the global row exists: mark `~/.claude/CLAUDE.md` `inactive
 
 A subdirectory `CLAUDE.local.md` follows the subdirectory `CLAUDE.md` rule. `~/.claude/CLAUDE.md` is `active` in every mode except `managed-only`.
 
-4. **Imported or symlinked AGENTS.md:** if an active `CLAUDE.md` imports `@AGENTS.md` or is a symlink to it, mark that `AGENTS.md` `active` with the note "via CLAUDE.md" instead of `inactive`. Its content reaches Claude through the `CLAUDE.md`.
-5. **AGENTS.md support unavailable:** if `enabledPlugins` in `~/.claude/settings.json` sets `cc-plugin-agents-md@builtin` or `agents-md@builtin` to `false`, the built-in plugin that reads `AGENTS.md` is disabled. Mark every `AGENTS.md` `inactive` with the note "AGENTS.md plugin disabled" (rule 4 still applies). The exact `enabledPlugins` key is inferred from the plugin ID in the docs, so treat it as unconfirmed. Claude Code versions before v2.1.277 also never read `AGENTS.md`; this skill can't detect that, so don't guess.
+4. **Imported or symlinked AGENTS.md:** if an active counting file (`CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md`, at the root or in an ancestor) imports an `AGENTS.md` or `.claude/AGENTS.md` or is a symlink to it, mark that `AGENTS.md` `active` with the note "via CLAUDE.md" instead of `inactive`. Its content reaches Claude through that file. An import is an `@path` reference outside Markdown code spans and fenced code blocks (Claude Code skips those). Resolve a relative path from the folder of the file that contains it, so `@AGENTS.md` in `.claude/CLAUDE.md` names `.claude/AGENTS.md`, and the root `AGENTS.md` is `@../AGENTS.md` there. If the import resolves outside the project root, Claude Code treats it as an external import that loads only after the user approves it, so add "uncertain: external import" to the note.
+5. **AGENTS.md support unavailable:** if `enabledPlugins` in `~/.claude/settings.json` sets `cc-plugin-agents-md@builtin` or `agents-md@builtin` to `false`, the built-in plugin that reads `AGENTS.md` is disabled. Mark every `AGENTS.md` `inactive` with the note "AGENTS.md plugin disabled", which replaces any reason note from the mode table (rule 4 still applies). The exact `enabledPlugins` key is inferred from the plugin ID in the docs, so treat it as unconfirmed. Claude Code versions before v2.1.277 also never read `AGENTS.md`; this skill can't detect that, so don't guess.
 6. **Active root file:** the file used for quality scoring. Use the project-root `CLAUDE.md` (else `.claude/CLAUDE.md`) if it is active. Otherwise use the project-root `AGENTS.md` (else `.claude/AGENTS.md`) if it is active. If neither is active, there is no active root file. When the chosen `CLAUDE.md` imports or symlinks to `AGENTS.md`, score the combined content.
 7. **Warnings** (add to Phase 3 Validation):
    - Default mode, a counting file and a root or ancestor `AGENTS.md` both exist, and rule 4 does not apply. Emit exactly one of these:
      - If the only counting files are `CLAUDE.local.md`: `[!] CLAUDE.local.md stops Claude Code from reading AGENTS.md — set instructionFiles to claude-md-and-agents-md to load both`.
      - Otherwise: `[!] AGENTS.md ignored by Claude Code: CLAUDE.md present (instructionFiles = claude-md-or-agents-md)`.
-   - At least one root or ancestor instruction file exists, but none of them is active: `[!] No project instructions load for Claude Code (instructionFiles = <mode>)`.
+   - At least one root or ancestor instruction file exists, but none of them is active: `[!] No project instructions load for Claude Code (instructionFiles = <mode>)`. If rule 5 applies and the mode is `claude-md-or-agents-md` or `claude-md-and-agents-md` (so the disabled plugin is the cause), use `[!] No project instructions load for Claude Code: AGENTS.md plugin disabled` instead.
 
 **Deferred tools enumeration:** At generation time, invoke `ToolSearch` with a broad query (e.g., `"*"` or `"list all"`) to enumerate currently deferred/lazy-loaded tools. For each tool returned, record its name, the MCP server it belongs to, and its description. If MCP servers are unavailable or ToolSearch returns an error, skip this step gracefully and note "Deferred tools: unable to query — MCP server unavailable" in the output.
 
@@ -217,7 +217,7 @@ Check that every referenced automation actually exists on disk. Collect warnings
 
 | Check | Method | Warning format |
 |-------|--------|---------------|
-| Hook scripts exist | Use Bash: `[ -f "<path>" ]` for each hook command path | `[!] Hook script not found: <path>` |
+| Hook scripts exist | Use Bash: `[ -f "<path>" ]` for each hook command path. Plugin path variables are not set in the Bash tool, so first strip shell quotes from the path, replace a `CLAUDE_PLUGIN_ROOT` reference with that plugin's install path from installed_plugins.json, and in project mode replace a `CLAUDE_PROJECT_DIR` reference with the project root. If the path still references a variable (such as `CLAUDE_PLUGIN_DATA`), skip the check for it without a warning | `[!] Hook script not found: <path>` |
 | Skill SKILL.md exists | Confirm each discovered SKILL.md was readable | `[!] Skill file missing: <path>` |
 | Plugin not orphaned | Check for `.orphaned_at` file in plugin install dir | `[!] Plugin orphaned since <date>` |
 | Plugin dir exists | Verify install path from installed_plugins.json exists | `[!] Plugin directory not found: <path>` |
@@ -507,7 +507,9 @@ If the file format contains additional fields (description, context, etc.), incl
 
 (Include only if at least one instruction file exists: global `~/.claude/CLAUDE.md`, or any `CLAUDE.md`, `CLAUDE.local.md`, or `AGENTS.md` at the project root, an ancestor, or a subdirectory. Otherwise omit this entire section.)
 
-Mode: `{instructionFiles mode}` ({default / set in ~/.claude/settings.json})
+Mode: `{instructionFiles mode}` ({default / set in ~/.claude/settings.json / uncertain: <reason>})
+
+Use the `uncertain: <reason>` form when `modeSource` is `conflict` or `invalid`. The reason names both conflicting values, or the invalid value.
 
 ### Hierarchy
 
@@ -693,7 +695,7 @@ Write a machine-readable JSON sidecar to the project root with this structure:
   },
   "claudeMdQuality": {
     "exists": true,
-    "file": "./AGENTS.md",
+    "path": "./AGENTS.md",
     "lineCount": 85,
     "score": 8,
     "maxScore": 8,
@@ -746,7 +748,7 @@ Write a machine-readable JSON sidecar to the project root with this structure:
 }
 ```
 
-**Schema version 5** adds the `instructionFiles` object, adds `file` to `claudeMdQuality`, and adds `file`, `status` (`active` / `on_demand` / `inactive`), and `note` to each `claudeMdHierarchy` entry. Hierarchy entries now include `AGENTS.md` and `CLAUDE.local.md` files and the `ancestor` scope. The `claudeMdQuality` and `claudeMdHierarchy` key names are kept for compatibility, though they now cover `AGENTS.md` too. `instructionFiles.modeSource` is `default` or `user_settings`. `activeRootFile` is `null` when no root file is active. `agentsMdIgnored` is `true` when a root or ancestor `AGENTS.md` exists and is `inactive` for any reason (a CLAUDE.md-family file is present, the mode is `claude-md` or `managed-only`, or the plugin is disabled), and `false` otherwise. `claudeMdQuality.exists` is `true` only when there is an active root file; when it is `false`, the other `claudeMdQuality` fields are omitted.
+**Schema version 5** adds the `instructionFiles` object, adds `path` to `claudeMdQuality` (the active root file's relative path, e.g. `./AGENTS.md`), and adds `file`, `status` (`active` / `on_demand` / `inactive`), and `note` to each `claudeMdHierarchy` entry. A hierarchy entry's `file` is always the bare filename, exactly one of `CLAUDE.md`, `CLAUDE.local.md`, or `AGENTS.md`. Its location goes in `path`, including `.claude/` locations (e.g. `path` `./.claude/CLAUDE.md` with `file` `CLAUDE.md`). Hierarchy entries now include `AGENTS.md` and `CLAUDE.local.md` files and the `ancestor` scope. The `claudeMdQuality` and `claudeMdHierarchy` key names are kept for compatibility, though they now cover `AGENTS.md` too. `instructionFiles.modeSource` is `default`, `user_settings`, `conflict` (both `pluginConfigs` IDs are set and differ), or `invalid` (the value is not one of the four modes). In both of the last two cases, `mode` holds the mode used for activation. `activeRootFile` is `null` when no root file is active. `agentsMdIgnored` is `true` when a root or ancestor `AGENTS.md` exists and is `inactive` for any reason (a CLAUDE.md-family file is present, the mode is `claude-md` or `managed-only`, or the plugin is disabled), and `false` otherwise. `claudeMdQuality.exists` is `true` only when there is an active root file; when it is `false`, the other `claudeMdQuality` fields are omitted.
 
 ### 6c. Write `.CLAUDE.inventory.hash`
 

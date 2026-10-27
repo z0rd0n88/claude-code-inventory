@@ -69,7 +69,12 @@ There's no single place to see it all. This plugin creates that single place.
 - **AGENTS.md Discovery** — finds `AGENTS.md` next to `CLAUDE.md` at the project root, in `.claude/`, in ancestor directories, and up to 3 levels into subdirectories
 - **Active / Inactive Status** — applies Claude Code's loader rule and the `instructionFiles` setting, so a repo with both files shows `AGENTS.md` as ignored
 - **Score the Active File** — the quality score runs on whichever root file Claude Code actually loads
-- **Cross-Project Instruction Column** — `/inventory-compare` reports `CLAUDE.md` / `AGENTS.md` / both / none and flags ignored `AGENTS.md` files
+- **Cross-Project Instruction Column** — `/inventory-compare` reports `CLAUDE.md` / `AGENTS.md` / both / inherited / none and flags ignored `AGENTS.md` files
+
+**JSON changes in 2.2** (breaking for JSON consumers):
+
+- `/inventory-compare`: `claudeMdScore` is renamed to `instructionFileScore`, with no alias (compare `schemaVersion` 2).
+- `/inventory`: `claudeMdQuality.exists` now means an active root file exists, and the other `claudeMdQuality` fields are omitted when it is `false` (inventory `schemaVersion` 5).
 
 **Known limitations:**
 
