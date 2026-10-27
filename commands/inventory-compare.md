@@ -60,7 +60,7 @@ Show `(score/8)` only when the project has an active root file. Use `AGENTS.md (
 | AGENTS.md ignored | {project names} | AGENTS.md exists but Claude Code does not load it ({reason}) |
 | No hooks | {project names} | No automation hooks configured |
 
-Report "No instruction file" only when neither file exists, and never for `inherited`. Flag "AGENTS.md ignored" when the project's root `AGENTS.md` (not a parent folder's) is `inactive` for any reason under the skill's activation rules, with the reason in Details: emit one row per distinct reason, listing the projects with that reason. Typical reasons: "CLAUDE.md present" (default mode, CLAUDE.md-family file at the root or in a parent folder), "mode is claude-md", "mode is managed-only", or "AGENTS.md plugin disabled (uncertain)". Don't flag it when an active CLAUDE.md-family file at the root or in a parent folder imports it or is a symlink to it, or when it is a symlink to an active root `CLAUDE.md` (rule 4 of the activation rules).
+Report "No instruction file" only when neither file exists, and never for `inherited`. Flag "AGENTS.md ignored" when the project's root `AGENTS.md` (not a parent folder's) is `inactive` for any reason under the skill's activation rules, with the reason in Details: emit one row per distinct reason, listing the projects with that reason. Typical reasons: "CLAUDE.md present" (default mode, CLAUDE.md-family file at the root or in a parent folder), "mode is claude-md", "mode is managed-only", or "AGENTS.md plugin disabled, uncertain". Don't flag it when an active CLAUDE.md-family file at the root or in a parent folder imports it or is a symlink to it, or when it is a symlink to an active root `CLAUDE.md` (rule 4 of the activation rules).
 
 If no inconsistencies detected, show "No inconsistencies detected across {N} projects."
 
@@ -87,6 +87,7 @@ Write a JSON sidecar with this structure:
       "hasClaudeMd": true,
       "hasAgentsMd": true,
       "instructionFile": "both",
+      "inheritedActive": null,
       "activeInstructionFile": "CLAUDE.md",
       "instructionFileScore": 8
     },
@@ -102,6 +103,7 @@ Write a JSON sidecar with this structure:
       "hasClaudeMd": false,
       "hasAgentsMd": false,
       "instructionFile": "none",
+      "inheritedActive": null,
       "activeInstructionFile": null,
       "instructionFileScore": null
     }
@@ -112,7 +114,7 @@ Write a JSON sidecar with this structure:
   ]
 }
 
-The earlier shape had no `schemaVersion` and counts as version 1. Schema version 2 replaces `claudeMdScore` with `instructionFileScore` and adds `schemaVersion`, `instructionFilesMode` (one of the four modes; as `instructionFiles.mode` in the inventory skill, it holds the mode used for activation, also when the source is `conflict` or `invalid`), `instructionFilesModeSource` (`default` / `user_settings` / `conflict` / `invalid`, as `instructionFiles.modeSource` in the inventory skill), `hasAgentsMd`, `instructionFile` (`CLAUDE.md` / `AGENTS.md` / `both` / `inherited` / `none`), and `activeInstructionFile` (`CLAUDE.md` / `CLAUDE.local.md` / `AGENTS.md` / `null`; the bare filename, so an active `.claude/CLAUDE.md` reports `CLAUDE.md` and an active `.claude/AGENTS.md` reports `AGENTS.md`). `hasClaudeMd` is widened: it was `<path>/CLAUDE.md` exists, and is now any of `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` at the project root (parent folders and `~/.claude/CLAUDE.md` not included). `hasAgentsMd` is `true` when `AGENTS.md` or `.claude/AGENTS.md` exists at the project root (parent folders not included). `instructionFileScore` is `null` when `activeInstructionFile` is `null`. The `No CLAUDE.md` issue (details "Missing project instructions") is renamed `No instruction file` (details "Neither CLAUDE.md nor AGENTS.md exists"), and `AGENTS.md ignored` is new (one entry per distinct reason, as under Inconsistencies, with that reason in `details`), so the v2 issues are `No instruction file`, `AGENTS.md ignored`, and `No hooks`.
+The earlier shape had no `schemaVersion` and counts as version 1. Schema version 2 replaces `claudeMdScore` with `instructionFileScore` and adds `schemaVersion`, `instructionFilesMode` (one of the four modes; as `instructionFiles.mode` in the inventory skill, it holds the mode used for activation, also when the source is `conflict` or `invalid`), `instructionFilesModeSource` (`default` / `user_settings` / `conflict` / `invalid`, as `instructionFiles.modeSource` in the inventory skill), `hasAgentsMd`, `instructionFile` (`CLAUDE.md` / `AGENTS.md` / `both` / `inherited` / `none`), `inheritedActive` (`null` unless `instructionFile` is `inherited`; then `true` when at least one of its parent files is active, as the Summary's `inherited`, and `false` when none is, as `inherited (inactive)`), and `activeInstructionFile` (`CLAUDE.md` / `CLAUDE.local.md` / `AGENTS.md` / `null`; the bare filename, so an active `.claude/CLAUDE.md` reports `CLAUDE.md` and an active `.claude/AGENTS.md` reports `AGENTS.md`; the ` (uncertain)` that step 5 appends to the Summary cell for `~/.claude/AGENTS.md` has no JSON field). `hasClaudeMd` is widened: it was `<path>/CLAUDE.md` exists, and is now any of `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` at the project root (parent folders and `~/.claude/CLAUDE.md` not included). `hasAgentsMd` is `true` when `AGENTS.md` or `.claude/AGENTS.md` exists at the project root (parent folders not included). `instructionFileScore` is `null` when `activeInstructionFile` is `null`. The `No CLAUDE.md` issue (details "Missing project instructions") is renamed `No instruction file` (details "Neither CLAUDE.md nor AGENTS.md exists"), and `AGENTS.md ignored` is new (one entry per distinct reason, as under Inconsistencies, with `details` "AGENTS.md exists but Claude Code does not load it ({reason})"), so the v2 issues are `No instruction file`, `AGENTS.md ignored`, and `No hooks`.
 
 ## Edge Cases
 
