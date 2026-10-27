@@ -75,7 +75,7 @@ There's no single place to see it all. This plugin creates that single place.
 
 - `/inventory-compare`: `claudeMdScore` is renamed to `instructionFileScore`, with no alias (compare `schemaVersion` 2).
 - `/inventory-compare`: `hasClaudeMd` now covers `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` at the project root, and the `No CLAUDE.md` issue is renamed `No instruction file`.
-- `/inventory`: `claudeMdQuality.exists` now means an active root file exists, and the other `claudeMdQuality` fields are omitted when it is `false` (inventory `schemaVersion` 5).
+- `/inventory`: `claudeMdQuality.exists` now means an active root file exists, the other `claudeMdQuality` fields are omitted when it is `false`, and `lineCount` counts the scored content (a `CLAUDE.md` plus an `AGENTS.md` it imports), so it can exceed the file's own lines (inventory `schemaVersion` 5).
 - `/inventory`: `claudeMdHierarchy` now also lists `AGENTS.md`, `CLAUDE.local.md`, ancestor-directory (`ancestor` scope), and inactive files. Filter on `status` to count only files that load.
 
 **Known limitations:**
