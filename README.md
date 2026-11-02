@@ -321,4 +321,4 @@ Bash for the hooks, Markdown with YAML frontmatter for the skill and commands, J
 
 ## Author
 
-**Alex Fielder** ([@z0rd0n88](https://github.com/z0rd0n88)). Issues and pull requests are welcome at [github.com/z0rd0n88/claude-code-inventory](https://github.com/z0rd0n88/claude-code-inventory).
+[**@z0rd0n88**](https://github.com/z0rd0n88). Issues and pull requests are welcome at [github.com/z0rd0n88/claude-code-inventory](https://github.com/z0rd0n88/claude-code-inventory).
