@@ -27,27 +27,10 @@ fi
 
 # Check 3: Config hash changed (catches plugin installs/removals immediately)
 if [ "$stale" = false ] && [ -f ".CLAUDE.inventory.hash" ]; then
-    current_hash=""
-
-    # Build hash input from key config files + directory listings
-    hash_input=""
-    [ -f "$HOME/.claude/settings.json" ] && hash_input+=$(cat "$HOME/.claude/settings.json" 2>/dev/null)
-    [ -f "$HOME/.claude/plugins/installed_plugins.json" ] && hash_input+=$(cat "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null)
-    hash_input+=$(ls "$HOME/.claude/skills/" 2>/dev/null | sort)
-    [ -f ".claude/settings.json" ] && hash_input+=$(cat ".claude/settings.json" 2>/dev/null)
-    hash_input+=$(ls ".claude/skills/" 2>/dev/null | sort)
-    # v1.2: include memory files, scheduled tasks, and orphan markers
-    # Use find instead of ls+glob to avoid glob expansion crashing under set -euo pipefail
-    # when no memory directories exist
-    hash_input+=$(find "$HOME/.claude/projects/" -maxdepth 3 -name 'MEMORY.md' 2>/dev/null | sort)
-    hash_input+=$(ls "$HOME/.claude/scheduled-tasks/" 2>/dev/null | sort)
-    hash_input+=$(find "$HOME/.claude/plugins/cache/" -name '.orphaned_at' 2>/dev/null | sort)
-
-    if command -v md5sum &>/dev/null; then
-        current_hash=$(printf '%s' "$hash_input" | md5sum | cut -d' ' -f1)
-    elif command -v md5 &>/dev/null; then
-        current_hash=$(printf '%s' "$hash_input" | md5 -q)
-    fi
+    # The hash recipe lives in inventory-hash.sh so it matches what /inventory
+    # writes (skills/inventory/SKILL.md phase 6c) exactly.
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    current_hash=$(bash "$script_dir/inventory-hash.sh" 2>/dev/null || true)
 
     if [ -n "$current_hash" ]; then
         stored_hash=$(cat ".CLAUDE.inventory.hash" 2>/dev/null || echo "")

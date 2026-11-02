@@ -2,7 +2,7 @@
 
 **One file that answers "what is Claude Code actually running in this repo?"** A Claude Code plugin that finds every hook, skill, plugin, agent, MCP server, memory file and instruction file across all scopes. It tags each item as `installed`, `custom` or `blocked` and writes a single scannable inventory with a JSON sidecar. A session hook tells you when that inventory goes stale.
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-2.2.1-blue)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757)](https://code.claude.com/docs/en/plugins)
 [![Dependencies](https://img.shields.io/badge/runtime%20deps-none-lightgrey)](#tech-stack)
@@ -130,11 +130,11 @@ Managed (enterprise) settings and `--settings` overrides are **not** read.
 
 ### Staleness detection
 
-[`hooks/inventory.sh`](hooks/inventory.sh) is 62 lines of Bash. It runs a cascade of checks and stops at the first one that hits:
+[`hooks/inventory.sh`](hooks/inventory.sh) is a short Bash script with no model call. It runs a cascade of checks and stops at the first one that hits:
 
 1. **Missing:** `.CLAUDE.inventory.md` does not exist.
 2. **Age:** the file is older than 24 hours. The script uses `stat -f %m` on macOS and `stat -c %Y` on Linux and Git Bash.
-3. **Config hash:** an MD5 (`md5sum`, or `md5 -q` on macOS) is computed over user and project settings, the plugin registry, and listings of skill directories, memory indexes, scheduled tasks and orphan markers. It is compared with `.CLAUDE.inventory.hash`. This catches a plugin install even when the inventory is only seconds old.
+3. **Config hash:** [`hooks/inventory-hash.sh`](hooks/inventory-hash.sh) computes an MD5 (`md5sum`, or `md5 -q` on macOS) over user and project settings, the plugin registry, and listings of skill directories, memory files, scheduled tasks and orphan markers. It is compared with `.CLAUDE.inventory.hash`. This catches a plugin install even when the inventory is only seconds old. The skill writes the stored hash with the same script, and its Python fallback is byte-identical, so the two sides cannot drift apart. [`tests/hash-parity.sh`](tests/hash-parity.sh) enforces that.
 
 When a check hits, the hook prints a `hookSpecificOutput.additionalContext` message and Claude suggests regenerating. Regeneration stays a decision for the user or the model, never a side effect. On Windows, [`hooks/inventory.cmd`](hooks/inventory.cmd) is a polyglot: `cmd.exe` reads it as a batch file that starts Git Bash, while Bash treats the batch block as an ignored heredoc and `exec`s the script.
 
@@ -172,9 +172,9 @@ On top of this table, the skill resolves `@AGENTS.md` imports, ignoring code spa
 
 ```bash
 git clone https://github.com/z0rd0n88/claude-code-inventory.git
-mkdir -p ~/.claude/plugins/cache/local/inventory/2.2.0
+mkdir -p ~/.claude/plugins/cache/local/inventory/2.2.1
 cp -r claude-code-inventory/{.claude-plugin,commands,skills,hooks} \
-  ~/.claude/plugins/cache/local/inventory/2.2.0/
+  ~/.claude/plugins/cache/local/inventory/2.2.1/
 ```
 
 Then enable it in `~/.claude/settings.json`:
@@ -229,7 +229,7 @@ The plugin has no settings of its own. Its behavior comes from your Claude Code 
 | What | Where | Default |
 |------|-------|---------|
 | Staleness age threshold | `hooks/inventory.sh` (`86400` seconds) | 24 hours |
-| Hash inputs | `hooks/inventory.sh` (check 3) and `SKILL.md` phase 6c | Settings, plugin registry, skill, memory, scheduled-task and orphan listings |
+| Hash inputs | `hooks/inventory-hash.sh` (mirrored by the Python fallback in `SKILL.md` phase 6c) | Settings, plugin registry, skill, memory, scheduled-task and orphan listings |
 | Instruction-file mode | `pluginConfigs["cc-plugin-agents-md@builtin"].options.instructionFiles` in `~/.claude/settings.json` | `claude-md-or-agents-md` |
 | Gitignore entries | Appended to the project's `.gitignore` if missing | `.CLAUDE.inventory.{md,json,hash}` |
 
@@ -239,7 +239,7 @@ The `instructionFiles` mode is read only from user settings, as Claude Code does
 
 ```
 claude-code-inventory/
-├── .claude-plugin/plugin.json   # Plugin manifest (name, version 2.2.0, category)
+├── .claude-plugin/plugin.json   # Plugin manifest (name, version 2.2.1, category)
 ├── commands/
 │   ├── inventory.md             # /inventory: project mode
 │   ├── inventory-global.md      # /inventory-global: global mode
@@ -248,8 +248,10 @@ claude-code-inventory/
 ├── hooks/
 │   ├── hooks.json               # Registers the SessionStart hook
 │   ├── inventory.sh             # Three-tier staleness detection
+│   ├── inventory-hash.sh        # Single definition of the config hash
 │   └── inventory.cmd            # Polyglot Windows/Unix launcher
 ├── evals/evals.json             # 10 evaluation scenarios
+├── tests/hash-parity.sh         # Regression tests for the staleness hash
 ├── examples/sample-output.md    # A full generated inventory
 ├── .githooks/
 │   ├── pre-commit               # Refreshes ARCH.md on every commit
@@ -275,6 +277,8 @@ claude-code-inventory/
 | 8–9 | Project with only `AGENTS.md` (active and scored); project with both files (`AGENTS.md` flagged as ignored, end to end through `/inventory-compare`) |
 
 There is no automated runner yet. The `assertions` arrays are empty, and AGENTS.md lists the evaluation framework as future work. Until then, each scenario is checked by comparing a real run with its `expected_output`.
+
+The staleness hook does have automated tests. `bash tests/hash-parity.sh` runs in a throwaway `HOME` and checks three things: the hash script and the Python fallback agree, the hook exits cleanly when optional directories are missing, and the hook stays quiet when the hash is current but reports stale after a config change.
 
 ### Git hooks
 
@@ -308,6 +312,7 @@ python3 .githooks/gen_arch.py --check     # exit 1 if ARCH.md is stale (CI)
 | 2.0 | Global View | `/inventory-global`, `/inventory-compare`, settings conflicts, remote triggers |
 | 2.1 | Capabilities | Deferred tools, Monitor tracking, sandbox and security posture |
 | 2.2 | AGENTS.md | `AGENTS.md` discovery, active/inactive status, scoring the active file, compare column |
+| 2.2.1 | Fix | The hook no longer exits silently when optional `~/.claude` directories are missing; the hook and skill share one hash recipe, so a fresh inventory is no longer reported as stale |
 
 Planned next ([`docs/FUTURE.md`](docs/FUTURE.md)): an opt-in permission audit, session usage patterns, a one-line install script, and marketplace distribution.
 

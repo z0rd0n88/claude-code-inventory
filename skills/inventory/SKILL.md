@@ -752,36 +752,48 @@ Write a machine-readable JSON sidecar to the project root with this structure:
 
 ### 6c. Write `.CLAUDE.inventory.hash`
 
-Compute a hash of the key config files for staleness detection. Try the Bash approach
-first — if Bash is unavailable or fails, fall back to a Python one-liner, and if that
-also fails, write a timestamp-based fallback. The hash does NOT need to be
-cryptographically secure — it just needs to change when configs change.
+Compute a hash of the key config files for staleness detection. The SessionStart hook
+recomputes this hash and compares it with the stored value, so both sides must use the
+same recipe. That recipe lives in one place, `hooks/inventory-hash.sh`. Do not
+improvise a different command: any difference in input makes the hook report "stale"
+on every session. Run all approaches from the directory whose `.CLAUDE.inventory.hash`
+you are writing. The hash does NOT need to be cryptographically secure.
 
-**Approach 1 — Bash (preferred):**
+**Approach 1 — Plugin script (preferred):**
+The script sits two levels above this skill's base directory (`<plugin root>/hooks/`).
 ```bash
-hash_input=$(cat ~/.claude/settings.json ~/.claude/plugins/installed_plugins.json .claude/settings.json 2>/dev/null; ls ~/.claude/skills/ .claude/skills/ 2>/dev/null | sort; ls ~/.claude/projects/*/memory/ 2>/dev/null | sort; ls ~/.claude/scheduled-tasks/ 2>/dev/null | sort; find ~/.claude/plugins/cache/ -name '.orphaned_at' 2>/dev/null | sort)
-printf '%s' "$hash_input" | md5sum | cut -d' ' -f1
+bash "<base directory of this skill>/../../hooks/inventory-hash.sh"
 ```
+It prints the hash, or nothing if neither `md5sum` nor `md5` is installed. If the file
+does not exist (skill installed without the plugin) or prints nothing, use Approach 2.
 
-**Approach 2 — Python fallback (if Bash fails or is restricted):**
+**Approach 2 — Python fallback (byte-identical to the script):**
 ```python
-import hashlib, os, glob
-files = [os.path.expanduser("~/.claude/settings.json"), os.path.expanduser("~/.claude/plugins/installed_plugins.json"), ".claude/settings.json"]
-data = ""
-for f in files:
-    try: data += open(f).read()
-    except: pass
-for d in [os.path.expanduser("~/.claude/skills"), ".claude/skills", os.path.expanduser("~/.claude/scheduled-tasks")]:
-    try: data += "\n".join(sorted(os.listdir(d)))
-    except: pass
-for pattern in [os.path.expanduser("~/.claude/projects/*/memory/")]:
-    try: data += "\n".join(sorted(glob.glob(pattern + "*.md")))
-    except: pass
-for f in sorted(glob.glob(os.path.expanduser("~/.claude/plugins/cache/**/.orphaned_at"), recursive=True)):
-    try: data += f
-    except: pass
-print(hashlib.md5(data.encode()).hexdigest())
+import glob, hashlib, os
+c = os.path.expanduser("~/.claude")
+out = bytearray()
+for f in [c + "/settings.json", c + "/plugins/installed_plugins.json", ".claude/settings.json"]:
+    out += f"file:{f}\n".encode()
+    if os.path.isfile(f):
+        out += open(f, "rb").read()
+    out += b"\n"
+for d in [c + "/skills", ".claude/skills", c + "/scheduled-tasks"]:
+    out += f"dir:{d}\n".encode()
+    if os.path.isdir(d):
+        for e in sorted(n for n in os.listdir(d) if not n.startswith(".")):
+            out += f"{e}\n".encode()
+out += b"memory\n"
+for p in sorted(p for p in glob.glob(c + "/projects/*/memory/*.md") if os.path.isfile(p)):
+    out += f"{p}\n".encode()
+out += b"orphans\n"
+markers = []
+for root, dirs, files in os.walk(c + "/plugins/cache"):
+    markers += [os.path.join(root, n) for n in files + dirs if n == ".orphaned_at"]
+for m in sorted(markers):
+    out += f"{m}\n".encode()
+print(hashlib.md5(bytes(out)).hexdigest())
 ```
+`tests/hash-parity.sh` checks that this block and the script produce the same hash.
 
 **Approach 3 — Timestamp fallback (last resort):**
 If neither Bash nor Python can compute a hash, write the current ISO-8601 timestamp
