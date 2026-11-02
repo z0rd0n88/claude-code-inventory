@@ -1,350 +1,183 @@
 # claude-code-inventory
 
-A Claude Code plugin that auto-generates a comprehensive inventory of your entire Claude Code environment — hooks, skills, plugins, agents, MCP servers — organized by scope and tagged as **installed** or **custom**.
+**One file that answers "what is Claude Code actually running in this repo?"** A Claude Code plugin that finds every hook, skill, plugin, agent, MCP server, memory file and instruction file across all scopes. It tags each item as `installed`, `custom` or `blocked` and writes a single scannable inventory with a JSON sidecar. A session hook tells you when that inventory goes stale.
 
-> **One file to see everything.** No more digging through `settings.json`, plugin caches, and skill directories to remember what you have.
+[![Version](https://img.shields.io/badge/version-2.2.0-blue)](.claude-plugin/plugin.json)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757)](https://code.claude.com/docs/en/plugins)
+[![Dependencies](https://img.shields.io/badge/runtime%20deps-none-lightgrey)](#tech-stack)
 
-## The Problem
+---
 
-Claude Code's automation ecosystem grows fast. You install plugins, create custom skills, add hooks, configure MCP servers, define agents — and within weeks you can't remember what you have or where it lives. Configuration is scattered across:
+## The problem
 
-- `~/.claude/settings.json` (global hooks, plugins, permissions)
-- `~/.claude/plugins/installed_plugins.json` (plugin registry)
-- `~/.claude/plugins/blocklist.json` (blocked plugins)
-- `~/.claude/skills/*/SKILL.md` (global skills)
-- `.claude/settings.json` (project hooks, MCP servers)
-- `.claude/skills/*/SKILL.md` (project skills)
-- `.claude/agents/*.md` (project agents)
-- Each plugin's install directory (bundled skills, agents, commands, hooks)
+Claude Code automations pile up quickly, and they are spread across many places: user settings, the plugin registry and blocklist, each plugin's install directory, project `.claude/` folders, local overrides, per-project memory, and a `CLAUDE.md` / `AGENTS.md` chain that runs from your home directory down into subfolders. After a few weeks of installing plugins and writing skills, nobody can say for sure:
 
-There's no single place to see it all. This plugin creates that single place.
+- which hooks fire on `SessionStart`, and in what order;
+- which skills came from a marketplace and which ones you wrote;
+- whether a plugin you enabled is actually installed, or orphaned on disk;
+- whether Claude Code is reading your `AGENTS.md`, or ignoring it because a `CLAUDE.md` exists further up the tree.
 
-## Current State (v2.2)
+## What you get
 
-**Three commands:**
-
-| Command | What It Does | Output Location |
-|---------|-------------|-----------------|
-| `/inventory` | Per-project inventory (global + project + local scopes) | Project root |
-| `/inventory-global` | Global-only inventory (plugins, skills, hooks) | `~/.claude/` |
-| `/inventory-compare` | Cross-project comparison matrix | `~/.claude/` |
-
-**Core features (v1.0-v1.1):**
-
-- Generates `.CLAUDE.inventory.md`, `.CLAUDE.inventory.json`, `.CLAUDE.inventory.hash`
-- Tags every item as `installed` (from marketplace), `custom` (user-created), or `blocked`
-- Organizes by scope: Global → Project → Local
-- SessionStart hook with three-tier staleness detection (missing → age → hash)
-- Validates that referenced automations exist on disk
-- Detects changes between regenerations (additions/removals)
-- Lightweight recommendations based on detected tech stack
-- Self-documenting — the inventory includes this plugin in its own output
-- Cross-platform — polyglot hook scripts work on Windows (Git Bash) and Unix
-- MCP Auth State, Keybindings, instruction file quality scoring (8 criteria)
-
-**v1.2 "Deep Scan" features:**
-
-- **Memory Files** — indexes per-project memory files with orphan/broken-link detection
-- **Scheduled Tasks** — lists persistent scheduled tasks with schedule and enabled state
-- **Plugin Health** — orphaned versions with disk usage, enabled-but-not-installed detection, update recency
-- **Instruction File Hierarchy** — maps the full chain: global → ancestors → project root → subdirectories
-- **Hook Execution Order** — sequence numbers showing actual load order across scopes
-- **JSON Schema Versioning** — `schemaVersion` field for downstream tool compatibility
-
-**v2.0 "Global View" features:**
-
-- **Global Standalone Mode** — `/inventory-global` generates global-only inventory to `~/.claude/`
-- **Cross-Project Comparison** — `/inventory-compare` aggregates config across all projects with inconsistency detection
-- **Settings Conflict Detection** — surfaces scope overrides (global vs project vs local) with effective values
-- **Remote Triggers** — distinguishes local vs remote scheduled tasks via MCP tool integration
-
-**v2.1 "Capabilities" features:**
-
-- **Deferred Tools Inventory** — shows which MCP tools use lazy loading via Tool Search
-- **Monitor Tool Tracking** — detects Monitor tool and `run_in_background` usage in skills/hooks
-- **Sandbox Configuration** — reports security posture (sandbox mode, `dangerouslySkipPermissions`, permission count)
-
-**v2.2 "AGENTS.md" features:**
-
-- **AGENTS.md Discovery** — finds `AGENTS.md` next to `CLAUDE.md` at the project root, in `.claude/`, in ancestor directories, and up to 3 levels into subdirectories
-- **Active / Inactive Status** — applies Claude Code's loader rule and the `instructionFiles` setting, so a repo with both files shows `AGENTS.md` as ignored
-- **Score the Active File** — the quality score runs on whichever root file Claude Code actually loads
-- **Cross-Project Instruction Column** — `/inventory-compare` reports `CLAUDE.md` / `AGENTS.md` / both / inherited / none and flags ignored `AGENTS.md` files
-
-**JSON changes in 2.2** (breaking for JSON consumers):
-
-- `/inventory-compare`: `claudeMdScore` is renamed to `instructionFileScore`, with no alias (compare `schemaVersion` 2).
-- `/inventory-compare`: `hasClaudeMd` now covers `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` at the project root, and the `No CLAUDE.md` issue is renamed `No instruction file`.
-- `/inventory`: `claudeMdQuality.exists` now means an active root file exists, the other `claudeMdQuality` fields are omitted when it is `false`, and `lineCount` counts the scored content (a `CLAUDE.md` plus the `AGENTS.md` it imports or symlinks to, but no other imported file), so it can exceed the file's own lines (inventory `schemaVersion` 5).
-- `/inventory`: `claudeMdHierarchy` now also lists `AGENTS.md`, `CLAUDE.local.md`, ancestor-directory (`ancestor` scope), and inactive files. Filter on `status` to count only files that load.
-
-**Known limitations:**
-
-- The SKILL.md is a prompt, not executable code — output quality depends on the model
-- Plugin-bundled hooks from `hooks/hooks.json` are discovered but auto-loading behavior isn't documented by Anthropic
-- The hash check uses MD5 (fine for staleness detection, not for security)
-- First run requires manual `/inventory` invocation — the hook only *detects* staleness
-- MCP Auth State currently only shows Claude.ai web app servers, not Claude Code CLI servers
-
-## Future Direction
-
-See [`docs/FUTURE.md`](docs/FUTURE.md) for detailed specs on remaining planned features:
-- **Permission audit** — group patterns by tool type, detect duplicates and overly broad rules (opt-in)
-- **Session usage patterns** — aggregate tool usage, session duration, success rates (opt-in)
-- **Install script** — `curl | bash` one-liner for easier adoption
-- **Marketplace distribution** — publish to `claude-plugins-official`
-
-## Example Output
-
-Running `/inventory` produces inventory like this:
+Run `/inventory` and you get `.CLAUDE.inventory.md` at the project root, grouped by scope. Here is a shortened excerpt from [`examples/sample-output.md`](examples/sample-output.md):
 
 ```markdown
 # Claude Code Automation Inventory
-
 > Auto-generated by `inventory` plugin — 2026-03-20
 > Regenerate: `/inventory`
 
-## Global Scope (~/.claude/)
-
+## Global Scope (`~/.claude/`)
 ### Hooks
-| Event | Command | Origin | Description |
-|-------|---------|--------|-------------|
-| SessionStart | add-claude-gitignore.cmd | custom | Add .claude/ and CLAUDE.md to .gitignore |
-| SessionStart | inventory.cmd | custom | Check if inventory needs regeneration |
+| Event        | Command                     | Origin                  | Description                                  |
+|--------------|-----------------------------|-------------------------|----------------------------------------------|
+| SessionStart | add-claude-gitignore.cmd    | custom                  | Add .claude/ and CLAUDE.md to .gitignore     |
+| SessionStart | run-hook.cmd session-start  | installed (superpowers) | Superpowers session initialization           |
+| SessionStart | inventory.cmd               | custom (inventory)      | Check if automation inventory needs regeneration |
 
-### Skills
-| Name | Origin | Description |
-|------|--------|-------------|
-| add-claude-to-gitignore | custom | Auto-add .claude/ and CLAUDE.md to .gitignore |
-| execute-approved-plan | custom | Launch autonomous plan execution after approval |
-| inventory | custom | Generate this automation inventory file |
+### Blocked Plugins
+| Plugin                   | Reason   |
+|--------------------------|----------|
+| fizz@testmkt-marketplace | security |
 
-### Plugins
-| Plugin | Source | Origin | Version |
-|--------|--------|--------|---------|
-| superpowers | claude-plugins-official | installed | 5.0.5 |
-| github | claude-plugins-official | installed | 6b70f99f |
-| commit-and-push | local | custom | 1.0.0 |
-| inventory | local | custom | 1.0.0 |
-
-### Plugin-Bundled Skills
-| Skill | Plugin | Description |
-|-------|--------|-------------|
-| brainstorming | superpowers | Explore intent and design before implementation |
-| systematic-debugging | superpowers | Find root cause before attempting fixes |
-| test-driven-development | superpowers | Write test first, watch it fail, write code |
-
-## Project Scope (.claude/)
-
+## Project Scope (`.claude/`)
 ### MCP Servers
-| Name | Type | Package/URL | Origin |
-|------|------|-------------|--------|
-| context7 | npx | @upwind-media/context7-mcp@latest | custom |
-| github | npx | @modelcontextprotocol/server-github | installed |
+| Name     | Type | Package/URL                         | Origin                    |
+|----------|------|-------------------------------------|---------------------------|
+| context7 | npx  | @upwind-media/context7-mcp@latest   | custom                    |
+| github   | npx  | @modelcontextprotocol/server-github | installed (github plugin) |
 
-### Skills
-| Name | Origin | Description |
-|------|--------|-------------|
-| deploy-runpod | custom | Build, push, and deploy to RunPod |
-| health-check | custom | Unified health check for all services |
+## Instruction Files
+Mode: `claude-md-or-agents-md` (default)
+| Path                     | File      | Lines | Scope        | Status    |
+|--------------------------|-----------|-------|--------------|-----------|
+| ~/.claude/CLAUDE.md      | CLAUDE.md | 18    | global       | active    |
+| ./AGENTS.md              | AGENTS.md | 124   | project root | active    |
+| ./services/api/AGENTS.md | AGENTS.md | 31    | subdirectory | on demand |
 
-### Agents
-| Name | Origin | Description |
-|------|--------|-------------|
-| code-reviewer | custom | Reviews code for async correctness and security |
-
-## Recommendations
-| Type | Suggestion | Reason | Priority |
-|------|-----------|--------|----------|
-| MCP | Docker MCP server | docker-compose.yml detected | Medium |
-| Agent | security-reviewer | Auth tokens in codebase | Medium |
-
-## About This File
-| Property | Value |
-|----------|-------|
-| Generated by | `inventory@local` plugin (custom) |
-| Kept fresh by | SessionStart hook (config change or >24h stale) |
-| Self-documenting | This plugin appears in the inventory above |
+Score: 7/8 criteria met
 ```
 
-See [`examples/sample-output.md`](examples/sample-output.md) for a full real-world example with all sections populated.
+You also get `.CLAUDE.inventory.json`, a versioned, machine-readable copy of the same data, and `.CLAUDE.inventory.hash`, which lets the hook check freshness cheaply. All three are added to `.gitignore` for you.
 
-## How It Works
+## Features
 
-The plugin has two main components: a **SessionStart hook** (bash script) that detects when the inventory is stale, and a **skill** (SKILL.md prompt) that Claude executes to generate the inventory.
+| Area | What it reports |
+|------|-----------------|
+| **Core inventory** | Hooks, skills, plugins, agents, slash commands and MCP servers, each tagged `installed` / `custom` / `blocked` |
+| **Plugin-bundled content** | Skills, agents, commands and `hooks/hooks.json` found inside each enabled plugin's install directory |
+| **Hook execution order** | A sequence number per event: global hooks first, then plugin hooks, then project hooks |
+| **Instruction files** | The full `CLAUDE.md` / `AGENTS.md` / `CLAUDE.local.md` hierarchy (global, ancestors, root, and subdirectories up to 3 levels deep). Each file is marked `active`, `on demand` or `inactive`, with the reason |
+| **Quality score** | An 8-point check of the root instruction file Claude Code actually loads: dev commands, architecture, gotchas, setup, conventions, deployment, key paths, length |
+| **Plugin health** | Orphaned versions with their disk usage, plugins that are enabled but not installed, and plugins not updated in 30+ days |
+| **Settings conflicts** | Keys set in more than one of global, project and local settings, with the value that wins |
+| **Capabilities** | MCP servers loaded eagerly vs. deferred, the deferred tool list (via Tool Search), `Monitor` / `run_in_background` usage, and sandbox and permission-bypass status |
+| **Memory and scheduling** | Per-project memory files, with checks for files missing from `MEMORY.md` and broken links in it; local and remote scheduled tasks; MCP servers that need re-auth; keybindings |
+| **Change tracking** | A "Recent Changes" diff against the previous JSON snapshot |
+| **Validation** | `[!]` warnings for missing hook scripts, missing plugin directories, unavailable MCP commands, and ignored `AGENTS.md` files |
+| **Recommendations** | 3–5 automations you don't have yet, based on `package.json` / `pyproject.toml`, Docker files, and similar signals |
+| **Cross-project view** | `/inventory-compare` puts every project in one matrix and flags inconsistencies |
 
-### The Hook — Staleness Detection
+## How it works
 
-The hook runs automatically at the start of every Claude Code session. It checks three conditions in cascade — if any triggers, it asks Claude to regenerate:
+The plugin has two moving parts. A **SessionStart hook** written in plain Bash only *detects* staleness: it never calls the model and never writes files. A **skill** ([`skills/inventory/SKILL.md`](skills/inventory/SKILL.md)) is an 855-line structured spec that Claude follows in seven phases.
 
-```bash
-#!/usr/bin/env bash
-# SessionStart hook: check if .CLAUDE.inventory.md needs regeneration
-set -euo pipefail
+```mermaid
+flowchart TD
+    H["SessionStart hook<br/>inventory.cmd → inventory.sh"] -->|"missing, older than 24h,<br/>or config hash changed"| N["additionalContext:<br/>'Run /inventory to regenerate'"]
+    U["User runs /inventory<br/>or /inventory-global"] --> D
+    N --> D
 
-# Only act in git repos
-[ -d ".git" ] || exit 0
+    subgraph SKILL["skills/inventory/SKILL.md"]
+        D["1 · Discovery<br/>global, plugins, project, local,<br/>memory, instruction files"] --> C["2 · Classification<br/>installed / custom / blocked"]
+        C --> V["3 · Validation<br/>paths, orphans, MCP commands"]
+        V --> X["4 · Change detection<br/>diff against previous JSON"]
+        X --> R["5 · Recommendations<br/>tech-stack gap analysis"]
+        R --> G["6 · Generate output"]
+        G --> I["7 · Gitignore<br/>idempotent append"]
+    end
 
-stale=false
-
-# Check 1: File missing
-if [ ! -f ".CLAUDE.inventory.md" ]; then
-    stale=true
-fi
-
-# Check 2: File older than 24 hours
-if [ "$stale" = false ] && [ -f ".CLAUDE.inventory.md" ]; then
-    now=$(date +%s)
-    if [ "$(uname -s)" = "Darwin" ]; then
-        file_mod=$(stat -f %m ".CLAUDE.inventory.md" 2>/dev/null || echo 0)
-    else
-        # Linux and Git Bash on Windows
-        file_mod=$(stat -c %Y ".CLAUDE.inventory.md" 2>/dev/null || echo 0)
-    fi
-    file_age=$(( now - file_mod ))
-    [ "$file_age" -gt 86400 ] && stale=true
-fi
-
-# Check 3: Config hash changed (catches plugin installs/removals immediately)
-if [ "$stale" = false ] && [ -f ".CLAUDE.inventory.hash" ]; then
-    current_hash=""
-
-    # Build hash input from key config files + directory listings
-    hash_input=""
-    [ -f "$HOME/.claude/settings.json" ] && hash_input+=$(cat "$HOME/.claude/settings.json" 2>/dev/null)
-    [ -f "$HOME/.claude/plugins/installed_plugins.json" ] && \
-        hash_input+=$(cat "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null)
-    hash_input+=$(ls "$HOME/.claude/skills/" 2>/dev/null | sort)
-    [ -f ".claude/settings.json" ] && hash_input+=$(cat ".claude/settings.json" 2>/dev/null)
-    hash_input+=$(ls ".claude/skills/" 2>/dev/null | sort)
-
-    if command -v md5sum &>/dev/null; then
-        current_hash=$(printf '%s' "$hash_input" | md5sum | cut -d' ' -f1)
-    elif command -v md5 &>/dev/null; then
-        current_hash=$(printf '%s' "$hash_input" | md5 -q)
-    fi
-
-    if [ -n "$current_hash" ]; then
-        stored_hash=$(cat ".CLAUDE.inventory.hash" 2>/dev/null || echo "")
-        [ "$current_hash" != "$stored_hash" ] && stale=true
-    fi
-fi
-
-if $stale; then
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n'
-    printf '    "additionalContext": "Automation inventory (.CLAUDE.inventory.md) is missing,'
-    printf ' stale, or configs have changed. Run /inventory to regenerate."\n'
-    printf '  }\n}\n'
-fi
-
-exit 0
+    G --> MD[".CLAUDE.inventory.md"]
+    G --> JS[".CLAUDE.inventory.json"]
+    G --> HS[".CLAUDE.inventory.hash"]
+    JS -.->|"read by phase 4 on the next run"| X
+    HS -.->|"compared at the next session start"| H
 ```
 
-**Key design choice:** The hook doesn't regenerate the inventory itself — it only outputs a JSON message that Claude sees at session start. Claude then decides whether to run the skill. This keeps the hook lightweight (pure bash, no Claude invocation) and lets the user control when regeneration happens.
+### Scopes and precedence
 
-### The Polyglot Wrapper
+| Scope | Location | What is read | Precedence |
+|-------|----------|--------------|------------|
+| **Global** | `~/.claude/` | `settings.json` (hooks, `enabledPlugins`, `effortLevel`, sandbox keys, `instructionFiles` mode), `plugins/installed_plugins.json`, `plugins/blocklist.json`, `skills/*/SKILL.md`, `keybindings.json`, `mcp-needs-auth-cache.json`, `scheduled-tasks/*/`, `CLAUDE.md` | Lowest for settings. Its hooks run first |
+| **Plugin-bundled** | Install path from `installed_plugins.json` | `skills/`, `agents/`, `commands/`, `hooks/hooks.json`, `.orphaned_at` markers | Hooks run after global hooks, in `enabledPlugins` order |
+| **Project** | `.claude/` | `settings.json` (hooks with matchers, `mcpServers`), `skills/*/SKILL.md`, `agents/*.md` | Overrides global settings. Its hooks run last |
+| **Local** | `.claude/settings.local.json` | The **count** of `permissions.allow` entries only. The entries themselves are never listed | Highest (local > project > global) |
+| **Memory** | `~/.claude/projects/<slug>/memory/` | `MEMORY.md` index and frontmatter of each memory file | Not applicable |
+| **Instructions** | Global, every ancestor directory, project root, subdirectories (≤ 3 levels) | `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.claude/AGENTS.md` | Set by the `instructionFiles` mode (see below) |
 
-A single `.cmd` file that runs on both Windows and Unix:
+Managed (enterprise) settings and `--settings` overrides are **not** read.
 
-```cmd
-: << 'CMDBLOCK'
-@echo off
-"%ProgramFiles%\Git\bin\bash.exe" "%~dp0inventory.sh" %*
-exit /b %ERRORLEVEL%
-CMDBLOCK
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-exec bash "${SCRIPT_DIR}/inventory.sh" "$@"
-```
+### Classification rules
 
-Windows batch sees `@echo off` and launches Git Bash. Unix bash treats the batch block as a heredoc (ignored) and runs the script directly.
+| Item | Tag |
+|------|-----|
+| Plugin key ending in `@local` | `custom` |
+| Plugin key from any other marketplace (e.g. `@claude-plugins-official`) | `installed` |
+| Skill, agent, command or hook inside a plugin's install directory | Same tag as its plugin |
+| Skills in `~/.claude/skills/` or `.claude/skills/`, agents in `.claude/agents/`, hooks in any `settings.json` | `custom` |
+| MCP server in project settings | `custom`, or `installed` when it is known to come from a plugin |
+| Plugin listed in `plugins/blocklist.json` | `blocked` |
 
-### The Skill — 7-Phase Generation
+### Staleness detection
 
-The core logic lives in [`skills/inventory/SKILL.md`](skills/inventory/SKILL.md) — a structured prompt that Claude executes phase by phase:
+[`hooks/inventory.sh`](hooks/inventory.sh) is 62 lines of Bash. It runs a cascade of checks and stops at the first one that hits:
 
-| Phase | What It Does | Tools Used |
-|-------|-------------|------------|
-| **1. Discovery** | Read all config files in parallel | Read, Glob |
-| **2. Classification** | Tag each item as installed/custom/blocked | — (logic) |
-| **3. Validation** | Check referenced files exist on disk | Bash, Read |
-| **4. Change Detection** | Diff against previous `.CLAUDE.inventory.json` | Read |
-| **5. Recommendations** | Gap analysis from `pyproject.toml`/`package.json` | Read |
-| **6. Generation** | Write `.md`, `.json`, `.hash` files | Write |
-| **7. Gitignore** | Append entries if missing | Grep, Edit |
+1. **Missing:** `.CLAUDE.inventory.md` does not exist.
+2. **Age:** the file is older than 24 hours. The script uses `stat -f %m` on macOS and `stat -c %Y` on Linux and Git Bash.
+3. **Config hash:** an MD5 (`md5sum`, or `md5 -q` on macOS) is computed over user and project settings, the plugin registry, and listings of skill directories, memory indexes, scheduled tasks and orphan markers. It is compared with `.CLAUDE.inventory.hash`. This catches a plugin install even when the inventory is only seconds old.
 
-The skill is ~800 lines of structured instructions with explicit file paths, classification rules, output templates, and edge case handling. It supports two modes (project and global) and covers 20+ output sections. See the [full source](skills/inventory/SKILL.md).
+When a check hits, the hook prints a `hookSpecificOutput.additionalContext` message and Claude suggests regenerating. Regeneration stays a decision for the user or the model, never a side effect. On Windows, [`hooks/inventory.cmd`](hooks/inventory.cmd) is a polyglot: `cmd.exe` reads it as a batch file that starts Git Bash, while Bash treats the batch block as an ignored heredoc and `exec`s the script.
 
-### Plugin Metadata
+### Instruction-file activation (v2.2)
 
-```json
-{
-  "name": "inventory",
-  "description": "Auto-generates .CLAUDE.inventory.md — a comprehensive inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) ordered by scope and tagged as installed or custom.",
-  "version": "2.2.0",
-  "category": "documentation",
-  "source": {
-    "source": "local"
-  }
-}
-```
+Claude Code v2.1.277+ can read `AGENTS.md` in place of `CLAUDE.md`. The skill applies [the documented loader rules](https://code.claude.com/docs/en/memory#agents-md) so the inventory shows what actually loads:
 
-### Hook Registration
+| `instructionFiles` mode | Root/ancestor `CLAUDE.md` family | Root/ancestor `AGENTS.md` |
+|-------------------------|-------------------------------|---------------------------|
+| `claude-md-or-agents-md` (default) | active | active only if no `CLAUDE.md`-family file exists, otherwise inactive ("CLAUDE.md present") |
+| `claude-md-and-agents-md` | active | active |
+| `claude-md` | active | inactive |
+| `managed-only` | inactive | inactive |
 
-The plugin bundles its own hook via `hooks/hooks.json` — the plugin system loads this automatically when the plugin is enabled:
+On top of this table, the skill resolves `@AGENTS.md` imports, ignoring code spans, fenced blocks and quoted text, and following up to four hops. It also handles symlinks in either direction, a disabled built-in AGENTS.md plugin, conflicting or invalid mode values, and the edge case of a home-directory `.claude/AGENTS.md`. Where the docs are ambiguous, the file is labelled `uncertain` instead of guessed. The quality score always runs on the root file Claude Code actually loads.
 
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/inventory.cmd"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+## Engineering highlights
 
-Claude Code sets `${CLAUDE_PLUGIN_ROOT}` to the plugin's installed version directory, so the hook path doesn't need updating on a version bump.
-
-## Plugin Structure
-
-```
-inventory/2.2.0/
-├── .claude-plugin/
-│   └── plugin.json              # Plugin metadata (name, version, category)
-├── commands/
-│   ├── inventory.md             # /inventory slash command (project mode)
-│   ├── inventory-global.md      # /inventory-global slash command (global mode)
-│   └── inventory-compare.md     # /inventory-compare slash command (cross-project)
-├── skills/
-│   └── inventory/
-│       └── SKILL.md             # 7-phase generation instructions (~800 lines)
-└── hooks/
-    ├── hooks.json               # SessionStart hook registration
-    ├── inventory.sh             # Bash staleness detection (61 lines)
-    └── inventory.cmd            # Polyglot Windows+Unix wrapper (7 lines)
-```
-
-**Total: 9 files, ~900 lines.**
+- **A prompt written like a spec.** `SKILL.md` defines every input path, every classification rule, the output templates for both Markdown and JSON, and **35 enumerated edge cases** (no git repo, no `.claude/`, first run, missing frontmatter, unavailable MCP server, …). Each one has a defined fallback instead of an error.
+- **A cheap, safe hook.** Staleness detection is plain Bash with no model call and no file writes. It *signals* and never *acts*.
+- **Versioned data contracts.** The inventory JSON is at `schemaVersion` 5 and the cross-project JSON at `schemaVersion` 2. Breaking changes are documented field by field (for example, `claudeMdScore` became `instructionFileScore` in 2.2, with no alias).
+- **Change detection by set difference.** Items are keyed as `{name}:{scope}:{type}`, and memory files as `{filename}:memory:memory_file`. Additions and removals come from comparing the new keys against the previous JSON.
+- **Honest about uncertainty.** When Claude Code's behavior isn't documented (scope of the AGENTS.md plugin toggle, external imports, symlinked `AGENTS.md`), the output says `uncertain` instead of presenting a guess as fact.
+- **Privacy by default.** Local permission rules are counted, never listed. MCP auth state shows only server names and timestamps.
+- **Self-documenting.** The generated file lists the plugin's own skill, command and hook. Reading the inventory tells you how it was made.
+- **Worktree-aware.** `/inventory-compare` filters out `--claude-worktrees-` project slugs. The ARCH.md generator takes the repository name from `git rev-parse --git-common-dir`, so every linked worktree produces the same file and branches don't conflict.
+- **A deterministic repo map.** [`.githooks/gen_arch.py`](.githooks/gen_arch.py) rebuilds [`ARCH.md`](ARCH.md) from `git ls-files`, so it respects `.gitignore` and sorts directories first. It keeps the hand-written sections intact and ignores the timestamp when deciding whether anything changed, so the file is rewritten only on real changes. Writes are atomic (temporary file plus `replace`). A `--check` flag returns exit code 1 when the map is stale, for use in CI.
+- **Built from specs.** v1.2–v2.1 were designed in [`docs/superpowers/specs/`](docs/superpowers/specs/) and carried out from phased plans in [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
 ## Installation
 
-### Quick Install (Local Plugin)
+**Requirements:** Claude Code, Bash (Git Bash on Windows), and `md5sum` or `md5` for the hash check. There are no other runtime dependencies.
 
-1. Copy the plugin files to your local plugin cache:
+### Option A: local plugin (recommended)
 
 ```bash
-mkdir -p ~/.claude/plugins/cache/local/inventory/1.0.0
-cp -r .claude-plugin commands skills hooks \
-  ~/.claude/plugins/cache/local/inventory/1.0.0/
+git clone https://github.com/z0rd0n88/claude-code-inventory.git
+mkdir -p ~/.claude/plugins/cache/local/inventory/2.2.0
+cp -r claude-code-inventory/{.claude-plugin,commands,skills,hooks} \
+  ~/.claude/plugins/cache/local/inventory/2.2.0/
 ```
 
-2. Register in your global settings — add to `~/.claude/settings.json`:
+Then enable it in `~/.claude/settings.json`:
 
 ```json
 {
@@ -354,69 +187,138 @@ cp -r .claude-plugin commands skills hooks \
 }
 ```
 
-3. Start a new Claude Code session. The SessionStart hook will detect the missing inventory and prompt you to run `/inventory`.
+Start a new session. The hook will report that the inventory is missing, and you run `/inventory`. The hook is registered in [`hooks/hooks.json`](hooks/hooks.json) through `${CLAUDE_PLUGIN_ROOT}`, so its path keeps working after a version bump.
 
-### Minimal Install (Skill Only)
+### Option B: try it without installing
 
-Copy just the skill if you don't need the hook or slash command:
+```bash
+claude --plugin-dir ./claude-code-inventory
+```
+
+### Option C: skill only
 
 ```bash
 mkdir -p ~/.claude/skills/inventory
-cp skills/inventory/SKILL.md ~/.claude/skills/inventory/
+cp claude-code-inventory/skills/inventory/SKILL.md ~/.claude/skills/inventory/
 ```
 
-You'll need to tell Claude to "run the inventory skill" manually.
+You get no slash commands and no staleness hook. Ask Claude to "update my automation inventory" instead.
 
-## Design Decisions
+## Usage
 
-### Why a Plugin Instead of a Bare Skill?
+| Command | Scope scanned | Output |
+|---------|---------------|--------|
+| `/inventory` | Global + project + local | `./.CLAUDE.inventory.{md,json,hash}` |
+| `/inventory-global` | Global only (no project, local, memory or recommendations) | `~/.claude/.CLAUDE.inventory.{md,json,hash}` |
+| `/inventory-compare` | Every project under `~/.claude/projects/` (worktrees excluded, capped at the 50 most recent) | `~/.claude/.CLAUDE.cross-project.{md,json}` |
 
-| Feature | Bare Skill | Plugin |
-|---------|-----------|--------|
-| Slash command (`/inventory`) | No | Yes |
-| Bundled SessionStart hook | No (manual settings.json edit) | Yes (auto-loaded) |
-| Clean enable/disable | Delete the file | Toggle in `enabledPlugins` |
-| Files | 1 | 9 |
+The skill also responds to plain requests such as *"list my automations"*, *"what skills/hooks do I have"* or *"refresh automation inventory"*. It is also meant to run after `/claude-code-setup:claude-automation-recommender`.
 
-### Why Three Output Files?
+### Output files
 
 | File | Audience | Purpose |
 |------|----------|---------|
-| `.CLAUDE.inventory.md` | Humans | Read, scan, understand at a glance |
-| `.CLAUDE.inventory.json` | Tools | Programmatic access, diffing, cross-project comparison |
-| `.CLAUDE.inventory.hash` | Hook script | Fast staleness detection without re-scanning |
+| `.CLAUDE.inventory.md` | Humans | Scan everything at a glance |
+| `.CLAUDE.inventory.json` | Tools | Diffing, cross-project comparison, downstream scripts (`schemaVersion` 5) |
+| `.CLAUDE.inventory.hash` | The hook | A freshness check without rescanning anything |
 
-### Why Config Hash Instead of Just Time-Based?
+## Configuration
 
-Time-based staleness (24h) misses the most important case: **you just installed a plugin**. The hash concatenates `settings.json` + `installed_plugins.json` + skill directory listings and MD5s the result. Any config change triggers regeneration immediately, even if the inventory was generated seconds ago.
+The plugin has no settings of its own. Its behavior comes from your Claude Code configuration and two constants:
 
-### Why Self-Documenting?
+| What | Where | Default |
+|------|-------|---------|
+| Staleness age threshold | `hooks/inventory.sh` (`86400` seconds) | 24 hours |
+| Hash inputs | `hooks/inventory.sh` (check 3) and `SKILL.md` phase 6c | Settings, plugin registry, skill, memory, scheduled-task and orphan listings |
+| Instruction-file mode | `pluginConfigs["cc-plugin-agents-md@builtin"].options.instructionFiles` in `~/.claude/settings.json` | `claude-md-or-agents-md` |
+| Gitignore entries | Appended to the project's `.gitignore` if missing | `.CLAUDE.inventory.{md,json,hash}` |
 
-A tool that inventories automations but doesn't list itself is a blind spot. The generated output includes this plugin's skill, command, and hook in the appropriate tables. If someone reads the file and wonders "how was this made?", the answer is in the file itself.
+The `instructionFiles` mode is read only from user settings, as Claude Code does. If it is set in project or local settings, the inventory shows a warning.
 
-## Configuration Sources
+## Repository layout
 
-| File | What's Extracted |
-|------|-----------------|
-| `~/.claude/settings.json` | Hooks, enabledPlugins, effortLevel, sandbox/security config |
-| `~/.claude/plugins/installed_plugins.json` | Plugin names, versions, install dates |
-| `~/.claude/plugins/blocklist.json` | Blocked plugins and reasons |
-| `~/.claude/plugins/cache/` | Orphaned versions (`.orphaned_at` markers), disk usage |
-| `~/.claude/skills/*/SKILL.md` | Global skill names and descriptions |
-| `~/.claude/keybindings.json` | Custom keyboard shortcuts |
-| `~/.claude/mcp-needs-auth-cache.json` | MCP servers needing re-authentication |
-| `~/.claude/CLAUDE.md` | Global user instructions (line count) |
-| `~/.claude/settings.json` → `pluginConfigs` | `instructionFiles` mode (which of CLAUDE.md / AGENTS.md Claude Code loads) |
-| `~/.claude/scheduled-tasks/*/` | Persistent scheduled task definitions |
-| `~/.claude/projects/<slug>/memory/` | Per-project memory files with YAML frontmatter |
-| `.claude/settings.json` | Project hooks, MCP servers (with deferred tool config) |
-| `.claude/skills/*/SKILL.md` | Project skill names and descriptions |
-| `.claude/agents/*.md` | Project agent names and descriptions |
-| `.claude/settings.local.json` | Permission count (entries not listed) |
-| `CLAUDE.md`, `AGENTS.md`, `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.claude/AGENTS.md` | Project instructions at the root and in ancestor directories, each marked active or inactive for Claude Code |
-| `**/CLAUDE.md`, `**/AGENTS.md`, `**/CLAUDE.local.md` | Subdirectory instruction files (on demand or inactive) |
-| Plugin install directories | Bundled skills, agents, commands, hooks |
+```
+claude-code-inventory/
+├── .claude-plugin/plugin.json   # Plugin manifest (name, version 2.2.0, category)
+├── commands/
+│   ├── inventory.md             # /inventory: project mode
+│   ├── inventory-global.md      # /inventory-global: global mode
+│   └── inventory-compare.md     # /inventory-compare: cross-project matrix
+├── skills/inventory/SKILL.md    # The 7-phase generator spec (855 lines)
+├── hooks/
+│   ├── hooks.json               # Registers the SessionStart hook
+│   ├── inventory.sh             # Three-tier staleness detection
+│   └── inventory.cmd            # Polyglot Windows/Unix launcher
+├── evals/evals.json             # 10 evaluation scenarios
+├── examples/sample-output.md    # A full generated inventory
+├── .githooks/
+│   ├── pre-commit               # Refreshes ARCH.md on every commit
+│   └── gen_arch.py              # Deterministic file-tree generator
+├── docs/                        # Design spec, release plans, roadmap (FUTURE.md)
+├── ARCH.md                      # Auto-maintained architecture map
+└── AGENTS.md                    # Contributor and agent guide
+```
+
+## Development
+
+### Evaluations
+
+[`evals/evals.json`](evals/evals.json) defines 10 scenarios. Each one pairs a natural-language prompt with the expected output:
+
+| # | Scenario |
+|---|----------|
+| 0–1 | Full inventory across scopes; project with no `.claude/` directory |
+| 2 | Regenerating after a plugin install produces a Recent Changes section |
+| 3–4 | Memory, scheduled tasks and plugin health; hook order and the instruction hierarchy |
+| 5–6 | `/inventory-global` output; `/inventory-compare` matrix and inconsistencies |
+| 7 | Deferred MCP tools, background monitoring, sandbox posture |
+| 8–9 | Project with only `AGENTS.md` (active and scored); project with both files (`AGENTS.md` flagged as ignored, end to end through `/inventory-compare`) |
+
+There is no automated runner yet. The `assertions` arrays are empty, and AGENTS.md lists the evaluation framework as future work. Until then, each scenario is checked by comparing a real run with its `expected_output`.
+
+### Git hooks
+
+```bash
+git config core.hooksPath .githooks       # once per clone
+python3 .githooks/gen_arch.py             # refresh ARCH.md manually
+python3 .githooks/gen_arch.py --check     # exit 1 if ARCH.md is stale (CI)
+```
+
+### Common changes
+
+- **New config source:** add it to Phase 1 (Discovery) in `SKILL.md`, then to Classification and to both output templates. Bump `schemaVersion` if the JSON shape changes.
+- **Different staleness window:** change the `86400` comparison in `hooks/inventory.sh`.
+- **New scenario:** add a `{ id, prompt, expected_output }` object to `evals/evals.json`.
+
+## Known limitations
+
+- The generator is a prompt, not compiled code, so output quality depends on the model running it.
+- The hook only *detects* staleness. The first inventory must be generated by hand.
+- The hook only runs when `.git` is a **directory** in the working directory. Linked worktrees, where `.git` is a file, and sessions started in a subfolder are skipped.
+- The hash uses MD5, which is enough for change detection and is not meant for security.
+- MCP Auth State covers only servers listed in `~/.claude/mcp-needs-auth-cache.json`, currently the Claude.ai connectors.
+- Anthropic does not document how plugin-bundled `hooks/hooks.json` files load. They are inventoried as global hooks.
+
+## Release history
+
+| Version | Theme | Highlights |
+|---------|-------|------------|
+| 1.0–1.1 | Core | Scoped inventory, installed/custom tagging, staleness hook, validation, recommendations |
+| 1.2 | Deep Scan | Memory files, scheduled tasks, plugin health, instruction hierarchy, hook execution order |
+| 2.0 | Global View | `/inventory-global`, `/inventory-compare`, settings conflicts, remote triggers |
+| 2.1 | Capabilities | Deferred tools, Monitor tracking, sandbox and security posture |
+| 2.2 | AGENTS.md | `AGENTS.md` discovery, active/inactive status, scoring the active file, compare column |
+
+Planned next ([`docs/FUTURE.md`](docs/FUTURE.md)): an opt-in permission audit, session usage patterns, a one-line install script, and marketplace distribution.
+
+## Tech stack
+
+Bash for the hooks, Markdown with YAML frontmatter for the skill and commands, JSON for the manifest, hook registration and evals, and Python 3 (standard library only) for the dev-only ARCH.md generator. The plugin needs nothing beyond what Claude Code already provides.
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 z0rd0n88
+
+## Author
+
+**Alex Fielder** ([@z0rd0n88](https://github.com/z0rd0n88)). Issues and pull requests are welcome at [github.com/z0rd0n88/claude-code-inventory](https://github.com/z0rd0n88/claude-code-inventory).
