@@ -4,7 +4,7 @@
 
 **claude-code-inventory** is a Claude Code plugin that auto-generates a unified inventory of all Claude Code automations (hooks, skills, plugins, agents, MCP servers) across global, project, and local scopes. It produces `.CLAUDE.inventory.md` (human-readable), `.CLAUDE.inventory.json` (machine-readable), and `.CLAUDE.inventory.hash` (staleness detection).
 
-**Version:** 2.2.0
+**Version:** 2.2.1
 **License:** MIT
 **Author:** z0rd0n88
 
@@ -121,6 +121,7 @@ No formal test runner — evaluation framework is for future expansion.
 |------|---------------|
 | `skills/inventory/SKILL.md` | Core logic — all 7 generation phases, output templates, edge cases |
 | `hooks/inventory.sh` | Staleness detection — platform-aware stat, MD5 hashing, fallbacks |
+| `hooks/inventory-hash.sh` | Single definition of the config hash; used by the hook and by SKILL.md phase 6c (`tests/hash-parity.sh` keeps the Python fallback in sync) |
 | `commands/inventory.md` | Slash command entry point — frontmatter + invocation instructions |
 | `.claude-plugin/plugin.json` | Plugin identity — name, version, category for marketplace |
 
